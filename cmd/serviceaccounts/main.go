@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/go-chi/chi/v5"
@@ -15,8 +15,14 @@ import (
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "configuration error: %v\n", err)
+		slog.Error("configuration error", "err", err)
 		os.Exit(1)
+	}
+
+	var handler slog.Handler
+	if cfg.LogFormat == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, nil)
+		slog.SetDefault(slog.New(handler))
 	}
 
 	r := chi.NewRouter()
@@ -24,7 +30,7 @@ func main() {
 	if !cfg.DevMode {
 		auth, err := handlers.NewAuthHandler(context.Background(), cfg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to initialise auth handler: %v\n", err)
+			slog.Error("failed to initialise auth handler", "err", err)
 			os.Exit(1)
 		}
 		r.Mount("/oauth2", routes.OAuthRouter(auth))
@@ -34,12 +40,12 @@ func main() {
 
 	srv, err := server.NewServer(r)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initialise server: %v\n", err)
+		slog.Error("failed to initialise server", "err", err)
 		os.Exit(1)
 	}
 
 	if err := srv.ListenAndServe(); err != nil {
-		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+		slog.Error("server error", "err", err)
 		os.Exit(1)
 	}
 }

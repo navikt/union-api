@@ -21,6 +21,9 @@ type Config struct {
 	SessionSecret string
 	// DevMode disables authentication and injects a stub principal. Never enable in production.
 	DevMode bool
+	// LogFormat controls the log output format. Valid values: "text" (default), "json".
+	// Set LOG_FORMAT=json in production to emit structured JSON for log aggregators.
+	LogFormat string
 }
 
 func (c *Config) IssuerURL() string {
@@ -40,6 +43,11 @@ func (c *Config) SecureCookies() bool {
 func LoadConfig() (*Config, error) {
 	devMode := os.Getenv("DEV_MODE") == "true"
 
+	logFormat := os.Getenv("LOG_FORMAT")
+	if logFormat == "" {
+		logFormat = "text"
+	}
+
 	cfg := &Config{
 		EntraIDTenantID:     os.Getenv("ENTRA_ID_TENANT_ID"),
 		EntraIDClientID:     os.Getenv("ENTRA_ID_CLIENT_ID"),
@@ -47,6 +55,7 @@ func LoadConfig() (*Config, error) {
 		BaseURL:             os.Getenv("BASE_URL"),
 		SessionSecret:       os.Getenv("SESSION_SECRET"),
 		DevMode:             devMode,
+		LogFormat:           logFormat,
 	}
 
 	if devMode {

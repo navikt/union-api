@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -107,19 +107,19 @@ func NewSessionMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 
 			cookie, err := r.Cookie("session")
 			if err != nil {
-				log.Printf("session: no session cookie, redirecting to login (%s)", r.RequestURI)
+				slog.Info("session: no session cookie, redirecting to login", "uri", r.RequestURI)
 				redirectToLogin(w, r)
 				return
 			}
 
 			claims, err := verifySessionToken(secret, cookie.Value)
 			if err != nil {
-				log.Printf("session: token verification failed, redirecting to login: %v", err)
+				slog.Warn("session: token verification failed, redirecting to login", "err", err)
 				redirectToLogin(w, r)
 				return
 			}
 
-			log.Printf("session: authenticated as %q", claims.Email)
+			slog.Info("session: authenticated", "email", claims.Email)
 
 			ctx := context.WithValue(r.Context(), principalKey, &Principal{
 				Email: claims.Email,

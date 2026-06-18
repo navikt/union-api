@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -70,7 +70,7 @@ func NewAuthHandler(ctx context.Context, cfg *config.Config) (*AuthHandler, erro
 func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	nonce, err := generateNonce()
 	if err != nil {
-		log.Printf("login: failed to generate nonce: %v", err)
+		slog.Error("login: failed to generate nonce", "err", err)
 		http.Error(w, "failed to generate nonce", http.StatusInternalServerError)
 		return
 	}
@@ -83,7 +83,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	stateBytes, err := json.Marshal(oauthState{Nonce: nonce, Redirect: redirect})
 	if err != nil {
-		log.Printf("login: failed to encode state: %v", err)
+		slog.Error("login: failed to encode state", "err", err)
 		http.Error(w, "failed to encode state", http.StatusInternalServerError)
 		return
 	}
@@ -101,7 +101,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	authURL := a.oauth2Config.AuthCodeURL(state)
-	log.Printf("login: redirecting to EntraID (redirect_after_login=%q)", redirect)
+	slog.Info("login: redirecting to EntraID", "redirect_after_login", redirect)
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
@@ -112,21 +112,21 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Validate state parameter.
 	rawState := r.URL.Query().Get("state")
 	if rawState == "" {
-		log.Printf("callback: missing state parameter")
+		slog.Warn("callback: missing state parameter")
 		http.Error(w, "missing state parameter", http.StatusBadRequest)
 		return
 	}
 
 	stateBytes, err := base64.URLEncoding.DecodeString(rawState)
 	if err != nil {
-		log.Printf("callback: failed to decode state: %v", err)
+		slog.Warn("callback: failed to decode state", "err", err)
 		http.Error(w, "invalid state parameter", http.StatusBadRequest)
 		return
 	}
 
 	var state oauthState
 	if err := json.Unmarshal(stateBytes, &state); err != nil {
-		log.Printf("callback: failed to unmarshal state: %v", err)
+		slog.Warn("callback: failed to unmarshal state", "err", err)
 		http.Error(w, "invalid state parameter", http.StatusBadRequest)
 		return
 	}
@@ -134,12 +134,12 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Compare nonce from cookie to nonce in state to prevent CSRF.
 	nonceCookie, err := r.Cookie(stateCookieName)
 	if err != nil {
-		log.Printf("callback: oauth_state cookie missing: %v", err)
+		slog.Warn("callback: oauth_state cookie missing", "err", err)
 		http.Error(w, "state mismatch", http.StatusBadRequest)
 		return
 	}
 	if nonceCookie.Value != state.Nonce {
-		log.Printf("callback: nonce mismatch (cookie=%q state=%q)", nonceCookie.Value, state.Nonce)
+		slog.Warn("callback: nonce mismatch", "cookie", nonceCookie.Value, "state", state.Nonce)
 		http.Error(w, "state mismatch", http.StatusBadRequest)
 		return
 	}
@@ -158,15 +158,15 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Exchange the authorization code for tokens.
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		log.Printf("callback: missing code parameter")
+		slog.Warn("callback: missing code parameter")
 		http.Error(w, "missing code parameter", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("callback: exchanging code for tokens")
+	slog.Info("callback: exchanging code for tokens")
 	token, err := a.oauth2Config.Exchange(r.Context(), code)
 	if err != nil {
-		log.Printf("callback: token exchange failed: %v", err)
+		slog.Error("callback: token exchange failed", "err", err)
 		http.Error(w, "failed to exchange token", http.StatusInternalServerError)
 		return
 	}
@@ -174,15 +174,15 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Extract and validate the raw ID token.
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		log.Printf("callback: id_token missing from token response")
+		slog.Error("callback: id_token missing from token response")
 		http.Error(w, "missing id_token in response", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("callback: verifying id_token (len=%d)", len(rawIDToken))
+	slog.Info("callback: verifying id_token", "len", len(rawIDToken))
 	idToken, err := a.verifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
-		log.Printf("callback: id_token verification failed: %v", err)
+		slog.Error("callback: id_token verification failed", "err", err)
 		http.Error(w, "invalid id_token", http.StatusInternalServerError)
 		return
 	}
@@ -193,7 +193,7 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		Name              string `json:"name"`
 	}
 	if err := idToken.Claims(&oidcClaims); err != nil {
-		log.Printf("callback: failed to parse id_token claims: %v", err)
+		slog.Error("callback: failed to parse id_token claims", "err", err)
 		http.Error(w, "failed to parse token claims", http.StatusInternalServerError)
 		return
 	}
@@ -207,7 +207,7 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		idToken.Expiry,
 	)
 	if err != nil {
-		log.Printf("callback: failed to create session token: %v", err)
+		slog.Error("callback: failed to create session token", "err", err)
 		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
@@ -227,7 +227,7 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	if redirect == "" {
 		redirect = "/"
 	}
-	log.Printf("callback: success, redirecting to %q", redirect)
+	slog.Info("callback: success, redirecting", "redirect", redirect)
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
