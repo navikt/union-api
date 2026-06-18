@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"github.com/navikt/union-api/pkg/config"
 	"github.com/navikt/union-api/pkg/handlers"
@@ -20,24 +19,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	var auth *handlers.AuthHandler
+	r := chi.NewRouter()
+
 	if !cfg.DevMode {
-		auth, err = handlers.NewAuthHandler(context.Background(), cfg)
+		auth, err := handlers.NewAuthHandler(context.Background(), cfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to initialise auth handler: %v\n", err)
 			os.Exit(1)
 		}
-	}
-
-	r := chi.NewRouter()
-
-	var verifier *oidc.IDTokenVerifier
-	if auth != nil {
 		r.Mount("/oauth2", routes.OAuthRouter(auth))
-		verifier = auth.Verifier()
 	}
 
-	r.Mount("/serviceaccounts", routes.ServiceAccountsRouter(cfg, verifier))
+	r.Mount("/serviceaccounts", routes.ServiceAccountsRouter(cfg))
 
 	srv, err := server.NewServer(r)
 	if err != nil {

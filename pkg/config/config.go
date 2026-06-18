@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -15,22 +16,27 @@ type Config struct {
 	// BaseURL is the public base URL of this service, used to build the OAuth2 redirect URI.
 	// Example: https://union-api.intern.nav.no
 	BaseURL string
+	// SessionSecret is used to sign session cookies. Must be a random string of at least
+	// 32 characters.
+	SessionSecret string
 	// DevMode disables authentication and injects a stub principal. Never enable in production.
 	DevMode bool
 }
 
-// IssuerURL returns the EntraID OIDC issuer URL for the configured tenant.
 func (c *Config) IssuerURL() string {
 	return fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", c.EntraIDTenantID)
 }
 
-// RedirectURL returns the OAuth2 callback URL.
 func (c *Config) RedirectURL() string {
 	return c.BaseURL + "/oauth2/callback"
 }
 
-// LoadConfig reads configuration from environment variables.
-// It returns an error if any required variable is missing (unless DevMode is true).
+// SecureCookies returns true when the service is running behind HTTPS.
+// Cookies must not have the Secure flag over plain HTTP (e.g. localhost dev).
+func (c *Config) SecureCookies() bool {
+	return strings.HasPrefix(c.BaseURL, "https://")
+}
+
 func LoadConfig() (*Config, error) {
 	devMode := os.Getenv("DEV_MODE") == "true"
 
@@ -39,6 +45,7 @@ func LoadConfig() (*Config, error) {
 		EntraIDClientID:     os.Getenv("ENTRA_ID_CLIENT_ID"),
 		EntraIDClientSecret: os.Getenv("ENTRA_ID_CLIENT_SECRET"),
 		BaseURL:             os.Getenv("BASE_URL"),
+		SessionSecret:       os.Getenv("SESSION_SECRET"),
 		DevMode:             devMode,
 	}
 
@@ -57,6 +64,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.BaseURL == "" {
 		return nil, fmt.Errorf("BASE_URL is required")
+	}
+	if cfg.SessionSecret == "" {
+		return nil, fmt.Errorf("SESSION_SECRET is required")
 	}
 
 	return cfg, nil

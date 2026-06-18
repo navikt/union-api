@@ -5,11 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/navikt/union-api/pkg/config"
+	"github.com/navikt/union-api/pkg/middleware"
 	"golang.org/x/oauth2"
 )
 
@@ -25,15 +27,13 @@ type oauthState struct {
 	Redirect string `json:"redirect"`
 }
 
-// AuthHandler holds the OIDC provider and OAuth2 config used by the login and
-// callback handlers.
 type AuthHandler struct {
-	oauth2Config *oauth2.Config
-	verifier     *oidc.IDTokenVerifier
+	oauth2Config  *oauth2.Config
+	verifier      *oidc.IDTokenVerifier
+	secureCookies bool
+	sessionSecret []byte
 }
 
-// Verifier returns the OIDC ID token verifier, for use by middleware that
-// needs to validate tokens outside of this handler.
 func (a *AuthHandler) Verifier() *oidc.IDTokenVerifier {
 	return a.verifier
 }
@@ -58,8 +58,10 @@ func NewAuthHandler(ctx context.Context, cfg *config.Config) (*AuthHandler, erro
 	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.EntraIDClientID})
 
 	return &AuthHandler{
-		oauth2Config: oauth2Config,
-		verifier:     verifier,
+		oauth2Config:  oauth2Config,
+		verifier:      verifier,
+		secureCookies: cfg.SecureCookies(),
+		sessionSecret: []byte(cfg.SessionSecret),
 	}, nil
 }
 
@@ -68,6 +70,7 @@ func NewAuthHandler(ctx context.Context, cfg *config.Config) (*AuthHandler, erro
 func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	nonce, err := generateNonce()
 	if err != nil {
+		log.Printf("login: failed to generate nonce: %v", err)
 		http.Error(w, "failed to generate nonce", http.StatusInternalServerError)
 		return
 	}
@@ -80,6 +83,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	stateBytes, err := json.Marshal(oauthState{Nonce: nonce, Redirect: redirect})
 	if err != nil {
+		log.Printf("login: failed to encode state: %v", err)
 		http.Error(w, "failed to encode state", http.StatusInternalServerError)
 		return
 	}
@@ -92,11 +96,13 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   int((10 * time.Minute).Seconds()),
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   a.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	http.Redirect(w, r, a.oauth2Config.AuthCodeURL(state), http.StatusFound)
+	authURL := a.oauth2Config.AuthCodeURL(state)
+	log.Printf("login: redirecting to EntraID (redirect_after_login=%q)", redirect)
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 // Callback handles the redirect back from EntraID, validates the state/CSRF
@@ -106,25 +112,34 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Validate state parameter.
 	rawState := r.URL.Query().Get("state")
 	if rawState == "" {
+		log.Printf("callback: missing state parameter")
 		http.Error(w, "missing state parameter", http.StatusBadRequest)
 		return
 	}
 
 	stateBytes, err := base64.URLEncoding.DecodeString(rawState)
 	if err != nil {
+		log.Printf("callback: failed to decode state: %v", err)
 		http.Error(w, "invalid state parameter", http.StatusBadRequest)
 		return
 	}
 
 	var state oauthState
 	if err := json.Unmarshal(stateBytes, &state); err != nil {
+		log.Printf("callback: failed to unmarshal state: %v", err)
 		http.Error(w, "invalid state parameter", http.StatusBadRequest)
 		return
 	}
 
 	// Compare nonce from cookie to nonce in state to prevent CSRF.
 	nonceCookie, err := r.Cookie(stateCookieName)
-	if err != nil || nonceCookie.Value != state.Nonce {
+	if err != nil {
+		log.Printf("callback: oauth_state cookie missing: %v", err)
+		http.Error(w, "state mismatch", http.StatusBadRequest)
+		return
+	}
+	if nonceCookie.Value != state.Nonce {
+		log.Printf("callback: nonce mismatch (cookie=%q state=%q)", nonceCookie.Value, state.Nonce)
 		http.Error(w, "state mismatch", http.StatusBadRequest)
 		return
 	}
@@ -136,19 +151,22 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   a.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 
 	// Exchange the authorization code for tokens.
 	code := r.URL.Query().Get("code")
 	if code == "" {
+		log.Printf("callback: missing code parameter")
 		http.Error(w, "missing code parameter", http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("callback: exchanging code for tokens")
 	token, err := a.oauth2Config.Exchange(r.Context(), code)
 	if err != nil {
+		log.Printf("callback: token exchange failed: %v", err)
 		http.Error(w, "failed to exchange token", http.StatusInternalServerError)
 		return
 	}
@@ -156,24 +174,52 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Extract and validate the raw ID token.
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
+		log.Printf("callback: id_token missing from token response")
 		http.Error(w, "missing id_token in response", http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("callback: verifying id_token (len=%d)", len(rawIDToken))
 	idToken, err := a.verifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
+		log.Printf("callback: id_token verification failed: %v", err)
 		http.Error(w, "invalid id_token", http.StatusInternalServerError)
 		return
 	}
 
-	// Store the raw ID token in the session cookie. The expiry matches the token.
+	// Extract only the claims we need from the (large) OIDC token.
+	var oidcClaims struct {
+		PreferredUsername string `json:"preferred_username"`
+		Name              string `json:"name"`
+	}
+	if err := idToken.Claims(&oidcClaims); err != nil {
+		log.Printf("callback: failed to parse id_token claims: %v", err)
+		http.Error(w, "failed to parse token claims", http.StatusInternalServerError)
+		return
+	}
+
+	// Create a compact signed session token — the raw ID token is too large
+	// for a browser cookie (EntraID tokens can exceed 4 KB).
+	sessionToken, err := middleware.CreateSessionToken(
+		a.sessionSecret,
+		oidcClaims.PreferredUsername,
+		oidcClaims.Name,
+		idToken.Expiry,
+	)
+	if err != nil {
+		log.Printf("callback: failed to create session token: %v", err)
+		http.Error(w, "failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	// Store the compact session token in the cookie.
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    rawIDToken,
+		Value:    sessionToken,
 		Path:     "/",
 		Expires:  idToken.Expiry,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   a.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -181,6 +227,7 @@ func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	if redirect == "" {
 		redirect = "/"
 	}
+	log.Printf("callback: success, redirecting to %q", redirect)
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
