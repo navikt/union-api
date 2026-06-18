@@ -1,13 +1,12 @@
 package server
 
-import "net/http"
-import "github.com/navikt/union-api/pkg/routes"
+import (
+	"net/http"
+)
 
-func NewServer() *http.Server {
-	r := routes.ServiceAccountsRouter()
-
+func NewServer(handler http.Handler) (*http.Server, error) {
 	return &http.Server{
 		Addr:    ":8080",
-		Handler: r,
-	}
+		Handler: handler,
+	}, nil
 }

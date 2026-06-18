@@ -3,18 +3,20 @@ package routes
 import (
 	"net/http"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/navikt/union-api/pkg/config"
+	"github.com/navikt/union-api/pkg/handlers"
 	"github.com/navikt/union-api/pkg/middleware"
 )
 
-func ServiceAccountsRouter() http.Handler {
+func ServiceAccountsRouter(cfg *config.Config, verifier *oidc.IDTokenVerifier) http.Handler {
 	r := chi.NewRouter()
-	r.Route("/serviceaccounts", func(r chi.Router) {
-		r.Use(middleware.SessionMiddleware)
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("Service Accounts"))
-		})
-	})
+
+	sessionMiddleware := middleware.NewSessionMiddleware(cfg, verifier)
+
+	r.Use(sessionMiddleware)
+	r.Get("/", handlers.ServiceAccountsHandler)
 
 	return r
 }
