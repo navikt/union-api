@@ -10,6 +10,7 @@ import (
 	"github.com/navikt/union-api/pkg/handlers"
 	"github.com/navikt/union-api/pkg/routes"
 	"github.com/navikt/union-api/pkg/server"
+	"github.com/navikt/union-api/pkg/uctl"
 )
 
 func main() {
@@ -19,9 +20,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	var handler slog.Handler
 	if cfg.LogFormat == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, nil)
+		handler := slog.NewJSONHandler(os.Stdout, nil)
 		slog.SetDefault(slog.New(handler))
 	}
 
@@ -36,7 +36,9 @@ func main() {
 		r.Mount("/oauth2", routes.OAuthRouter(auth))
 	}
 
-	r.Mount("/serviceaccounts", routes.ServiceAccountsRouter(cfg))
+	uctlClient := uctl.NewUCTLClient(cfg.UnionConfig)
+	saHandler := handlers.NewServiceAccountsHandler(uctlClient)
+	r.Mount("/serviceaccounts", routes.ServiceAccountsRouter(cfg, saHandler))
 
 	srv, err := server.NewServer(r)
 	if err != nil {

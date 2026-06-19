@@ -9,9 +9,9 @@ import (
 	"github.com/navikt/union-api/pkg/middleware"
 )
 
-func ServiceAccountsRouter(cfg *config.Config) http.Handler {
+func ServiceAccountsRouter(cfg *config.Config, saHandler handlers.ServiceAccountsHandler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.NewSessionMiddleware(cfg))
-	r.Get("/", handlers.ServiceAccountsHandler)
+	r.Get("/", saHandler.GetServiceAccounts)
 	return r
 }

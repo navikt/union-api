@@ -7,5 +7,6 @@ require github.com/go-chi/chi/v5 v5.3.0
 require (
 	github.com/coreos/go-oidc/v3 v3.19.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 )

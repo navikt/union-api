@@ -1,41 +1,38 @@
 package handlers
 
 import (
-	"fmt"
+	"encoding/json"
+	"log/slog"
 	"net/http"
-	"os/exec"
 
 	"github.com/navikt/union-api/pkg/middleware"
+	"github.com/navikt/union-api/pkg/uctl"
 )
 
-func ServiceAccountsHandler(w http.ResponseWriter, r *http.Request) {
+type ServiceAccountsHandler struct {
+	uctlClient uctl.UCTLClient
+}
+
+func NewServiceAccountsHandler(uctlClient uctl.UCTLClient) ServiceAccountsHandler {
+	return ServiceAccountsHandler{
+		uctlClient,
+	}
+}
+
+func (h ServiceAccountsHandler) GetServiceAccounts(w http.ResponseWriter, r *http.Request) {
 	principal, ok := middleware.PrincipalFromContext(r.Context())
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	assignments, err := getUnionIdentityAssignments(principal)
+	assignments, err := h.uctlClient.GetIdentityAssignments(principal.Email)
 	if err != nil {
+		slog.Error("failed to fetch identity assignments", "error", err)
 		http.Error(w, "failed to fetch identity assignments", http.StatusInternalServerError)
 		return
 	}
 
-	_ = assignments // TODO: render response
-}
-
-func getUnionIdentityAssignments(principal *middleware.Principal) ([]string, error) {
-	cmd := exec.Command(
-		"uctl",
-		"--org", "union-nav",
-		"get", "identityassignments",
-		"--user", principal.Email,
-		"--output", "json",
-	)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute uctl command: %w", err)
-	}
-	_ = output // TODO: parse JSON output
-	return []string{"assignment1", "assignment2"}, nil
+	json, err := json.Marshal(assignments)
+	w.Write(json)
 }

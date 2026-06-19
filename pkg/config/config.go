@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/navikt/union-api/pkg/uctl"
 )
 
 type Config struct {
@@ -24,6 +26,8 @@ type Config struct {
 	// LogFormat controls the log output format. Valid values: "text" (default), "json".
 	// Set LOG_FORMAT=json in production to emit structured JSON for log aggregators.
 	LogFormat string
+
+	UnionConfig uctl.UnionConfig
 }
 
 func (c *Config) IssuerURL() string {
@@ -56,6 +60,12 @@ func LoadConfig() (*Config, error) {
 		SessionSecret:       os.Getenv("SESSION_SECRET"),
 		DevMode:             devMode,
 		LogFormat:           logFormat,
+		UnionConfig: uctl.UnionConfig{
+			ClientID:           os.Getenv("UNION_CLIENT_ID"),
+			ClientSecretEnvVar: os.Getenv("UNION_CLIENT_SECRET_ENV_VAR"),
+			Endpoint:           os.Getenv("UNION_ENDPOINT"),
+			Org:                os.Getenv("UNION_ORG"),
+		},
 	}
 
 	if devMode {
@@ -76,6 +86,21 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.SessionSecret == "" {
 		return nil, fmt.Errorf("SESSION_SECRET is required")
+	}
+	if cfg.UnionConfig.ClientID == "" {
+		return nil, fmt.Errorf("UNION_CLIENT_ID is required")
+	}
+	if cfg.UnionConfig.ClientSecretEnvVar == "" {
+		return nil, fmt.Errorf("UNION_CLIENT_SECRET_ENV_VAR is required")
+	}
+	if os.Getenv(cfg.UnionConfig.ClientSecretEnvVar) == "" {
+		return nil, fmt.Errorf("%s is required", cfg.UnionConfig.ClientSecretEnvVar)
+	}
+	if cfg.UnionConfig.Endpoint == "" {
+		return nil, fmt.Errorf("UNION_ENDPOINT is required")
+	}
+	if cfg.UnionConfig.Org == "" {
+		return nil, fmt.Errorf("UNION_ORG is required")
 	}
 
 	return cfg, nil
