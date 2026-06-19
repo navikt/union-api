@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/navikt/union-api/pkg/config"
 	"github.com/navikt/union-api/pkg/handlers"
+	"github.com/navikt/union-api/pkg/k8s"
 	"github.com/navikt/union-api/pkg/routes"
 	"github.com/navikt/union-api/pkg/server"
 	"github.com/navikt/union-api/pkg/uctl"
@@ -32,14 +33,19 @@ func main() {
 	if !cfg.DevMode {
 		auth, err := handlers.NewAuthHandler(context.Background(), cfg)
 		if err != nil {
-			slog.Error("failed to initialise auth handler", "err", err)
+			slog.Error("failed to initialize auth handler", "err", err)
 			os.Exit(1)
 		}
 		r.Mount("/oauth2", routes.OAuthRouter(auth))
 	}
 
 	uctlClient := uctl.NewUCTLClient(cfg.UnionConfig)
-	saHandler := handlers.NewServiceAccountsHandler(uctlClient)
+	k8sClient, err := k8s.NewK8sClient(context.Background(), cfg.K8sConfig)
+	if err != nil {
+		slog.Error("failed to initialize k8s client", "err", err)
+	}
+	saHandler := handlers.NewServiceAccountsHandler(uctlClient, k8sClient)
+
 	r.Mount("/serviceaccounts", routes.ServiceAccountsRouter(cfg, saHandler))
 
 	srv, err := server.NewServer(r)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/navikt/union-api/pkg/k8s"
 	"github.com/navikt/union-api/pkg/uctl"
 )
 
@@ -31,6 +32,8 @@ type Config struct {
 	LogLevel slog.Level
 
 	UnionConfig uctl.UnionConfig
+
+	K8sConfig k8s.K8sConfig
 }
 
 func (c *Config) IssuerURL() string {
@@ -79,6 +82,11 @@ func LoadConfig() (*Config, error) {
 			Endpoint:           os.Getenv("UNION_ENDPOINT"),
 			Org:                os.Getenv("UNION_ORG"),
 		},
+		K8sConfig: k8s.K8sConfig{
+			FleetHostProjectNumber: os.Getenv("GKE_FLEET_HOST_PROJECT_NUMBER"),
+			MembershipName:         os.Getenv("GKE_FLEET_MEMBERSHIP_NAME"),
+			Location:               os.Getenv("GKE_FLEET_LOCATION"),
+		},
 	}
 
 	if devMode {
@@ -114,6 +122,15 @@ func LoadConfig() (*Config, error) {
 	}
 	if cfg.UnionConfig.Org == "" {
 		return nil, fmt.Errorf("UNION_ORG is required")
+	}
+	if cfg.K8sConfig.FleetHostProjectNumber == "" {
+		return nil, fmt.Errorf("GKE_FLEET_HOST_PROJECT_NUMBER is required")
+	}
+	if cfg.K8sConfig.Location == "" {
+		return nil, fmt.Errorf("GKE_FLEET_LOCATION is required")
+	}
+	if cfg.K8sConfig.MembershipName == "" {
+		return nil, fmt.Errorf("GKE_FLEET_MEMBERSHIP_NAME is required")
 	}
 
 	return cfg, nil
