@@ -16,21 +16,17 @@ type K8sConfig struct {
 	MembershipName string
 }
 
-// ConnectGatewayURL returns the full Connect Gateway base URL for the configured cluster.
+// ConnectGatewayURL returns the full Connect Gateway base URL for the configured
+// cluster, including the regional host and the membership path prefix.
+//
+// The path component is significant: client-go treats a path set on
+// rest.Config.Host as a prefix applied to every request URL, which is exactly
+// what the Connect Gateway requires. The https:// scheme must be present, or
+// client-go rejects a host that carries a path.
 func (c K8sConfig) ConnectGatewayURL() string {
-	return c.host() + c.pathPrefix()
-}
-
-// host returns the regional Connect Gateway hostname for this config.
-func (c K8sConfig) host() string {
-	return fmt.Sprintf("https://%s-connectgateway.googleapis.com", c.Location)
-}
-
-// pathPrefix returns the Connect Gateway URL path for the configured cluster.
-// This is prepended to every Kubernetes API request path by gatewayTransport.
-func (c K8sConfig) pathPrefix() string {
 	return fmt.Sprintf(
-		"/v1/projects/%s/locations/%s/gkeMemberships/%s",
+		"https://%s-connectgateway.googleapis.com/v1/projects/%s/locations/%s/gkeMemberships/%s",
+		c.Location,
 		c.FleetHostProjectNumber,
 		c.Location,
 		c.MembershipName,

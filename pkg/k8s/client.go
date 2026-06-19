@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -26,25 +25,27 @@ func NewK8sClient(ctx context.Context, cfg K8sConfig) (*K8sClient, error) {
 		return nil, fmt.Errorf("get default token source: %w", err)
 	}
 
-	restCfg := &rest.Config{Host: cfg.host()}
-	restCfg.Wrap(
-		func(rt http.RoundTripper) http.RoundTripper {
-			return &oauth2.Transport{
-				Source: ts,
-				Base: &gatewayTransport{
-					base:       rt,
-					pathPrefix: cfg.pathPrefix(),
-				},
-			}
-		},
-	)
-
-	clientset, err := kubernetes.NewForConfig(restCfg)
+	clientset, err := kubernetes.NewForConfig(newRestConfig(cfg.ConnectGatewayURL(), ts))
 	if err != nil {
 		return nil, fmt.Errorf("create kubernetes clientset: %w", err)
 	}
 
 	return &K8sClient{clientset: clientset}, nil
+}
+
+// newRestConfig builds a rest.Config that talks to the Connect Gateway at host
+// and authenticates with a GCP OAuth2 token from ts.
+//
+// host carries the Connect Gateway membership path; client-go applies that path
+// as a prefix to every request URL, so no custom RoundTripper is needed. The
+// oauth2.Transport wrap injects (and refreshes) the bearer token, replacing the
+// in-tree gcp auth provider that client-go removed in v1.26.
+func newRestConfig(host string, ts oauth2.TokenSource) *rest.Config {
+	restCfg := &rest.Config{Host: host}
+	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+		return &oauth2.Transport{Source: ts, Base: rt}
+	})
+	return restCfg
 }
 
 func (c *K8sClient) Namespaces(ctx context.Context) (*corev1.NamespaceList, error) {
@@ -54,23 +55,4 @@ func (c *K8sClient) Namespaces(ctx context.Context) (*corev1.NamespaceList, erro
 	}
 
 	return ns, nil
-}
-
-// gatewayTransport rewrites every request URL to prepend the Connect Gateway
-// path prefix. This is necessary because client-go builds request paths from
-// versionedAPIPath (e.g. /api/v1) without preserving any path component set
-// on rest.Config.Host, so the prefix must be injected at the transport level.
-type gatewayTransport struct {
-	base       http.RoundTripper
-	pathPrefix string
-}
-
-func (t *gatewayTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	r2 := req.Clone(req.Context())
-	r2.URL.Path = t.pathPrefix + req.URL.Path
-	if req.URL.RawPath != "" {
-		r2.URL.RawPath = t.pathPrefix + req.URL.RawPath
-	}
-	slog.Debug("k8s request", "before", req.URL.String(), "after", r2.URL.String())
-	return t.base.RoundTrip(r2)
 }
