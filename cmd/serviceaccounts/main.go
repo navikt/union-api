@@ -25,6 +25,8 @@ func main() {
 		slog.SetDefault(slog.New(handler))
 	}
 
+	slog.SetLogLoggerLevel(cfg.LogLevel)
+
 	r := chi.NewRouter()
 
 	if !cfg.DevMode {

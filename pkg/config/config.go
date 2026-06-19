@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -26,6 +27,8 @@ type Config struct {
 	// LogFormat controls the log output format. Valid values: "text" (default), "json".
 	// Set LOG_FORMAT=json in production to emit structured JSON for log aggregators.
 	LogFormat string
+	// LogLevel controls the log output, values: "debug", "error", "info" (default).
+	LogLevel slog.Level
 
 	UnionConfig uctl.UnionConfig
 }
@@ -52,6 +55,15 @@ func LoadConfig() (*Config, error) {
 		logFormat = "text"
 	}
 
+	logLevelStr := os.Getenv("LOG_LEVEL")
+	logLevel := slog.LevelInfo.Level()
+	switch logLevelStr {
+	case "debug":
+		logLevel = slog.LevelDebug.Level()
+	case "error":
+		logLevel = slog.LevelError.Level()
+	}
+
 	cfg := &Config{
 		EntraIDTenantID:     os.Getenv("ENTRA_ID_TENANT_ID"),
 		EntraIDClientID:     os.Getenv("ENTRA_ID_CLIENT_ID"),
@@ -60,6 +72,7 @@ func LoadConfig() (*Config, error) {
 		SessionSecret:       os.Getenv("SESSION_SECRET"),
 		DevMode:             devMode,
 		LogFormat:           logFormat,
+		LogLevel:            logLevel,
 		UnionConfig: uctl.UnionConfig{
 			ClientID:           os.Getenv("UNION_CLIENT_ID"),
 			ClientSecretEnvVar: os.Getenv("UNION_CLIENT_SECRET_ENV_VAR"),
