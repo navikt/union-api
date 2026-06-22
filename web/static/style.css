@@ -295,3 +295,43 @@ body {
   color:       var(--color-text-muted);
   font-size:   var(--text-sm);
 }
+
+/* =====================================================================
+   Error page
+   ===================================================================== */
+.error-container {
+  max-width:   28rem;
+  margin:      var(--space-12) auto 0;
+  text-align:  center;
+}
+
+.error-status {
+  display:     block;
+  font-size:   var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color:       var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.error-title {
+  font-size:      var(--text-3xl);
+  font-weight:    var(--weight-semibold);
+  letter-spacing: -0.02em;
+  color:          var(--color-text-primary);
+  margin-bottom:  var(--space-3);
+}
+
+.error-message {
+  font-size:     var(--text-base);
+  color:         var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+}
+
+.error-back {
+  font-size:     var(--text-sm);
+  font-weight:   var(--weight-medium);
+  color:         var(--color-accent);
+  text-decoration: none;
+}
+
+.error-back:hover { text-decoration: underline; }

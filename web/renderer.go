@@ -44,6 +44,7 @@ type Renderer struct {
 func New() (*Renderer, error) {
 	pages := map[string]string{
 		"serviceaccounts": "templates/serviceaccounts.html",
+		"error":           "templates/error.html",
 	}
 
 	r := &Renderer{pages: make(map[string]*template.Template, len(pages))}
@@ -83,5 +84,41 @@ func (r *Renderer) Render(w http.ResponseWriter, page string, p *auth.Principal,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = buf.WriteTo(w)
+}
+
+// errorData is the view model for the error page template.
+type errorData struct {
+	Status  int
+	Title   string
+	Message string
+}
+
+// RenderError renders the error page with the given HTTP status and message.
+// Falls back to a plain-text response only if the error template itself fails.
+func (r *Renderer) RenderError(w http.ResponseWriter, p *auth.Principal, status int, message string) {
+	title := http.StatusText(status)
+
+	tmpl, ok := r.pages["error"]
+	if !ok {
+		http.Error(w, message, status)
+		return
+	}
+
+	vm := layout{
+		User:   p.Name,
+		Active: "",
+		Nav:    navItems,
+		Data:   errorData{Status: status, Title: title, Message: message},
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", vm); err != nil {
+		http.Error(w, message, status)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	_, _ = buf.WriteTo(w)
 }
