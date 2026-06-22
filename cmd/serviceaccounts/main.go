@@ -11,6 +11,7 @@ import (
 	"github.com/navikt/union-api/pkg/k8s"
 	"github.com/navikt/union-api/pkg/routes"
 	"github.com/navikt/union-api/pkg/server"
+	"github.com/navikt/union-api/pkg/serviceaccounts"
 	"github.com/navikt/union-api/pkg/uctl"
 )
 
@@ -44,7 +45,8 @@ func main() {
 	if err != nil {
 		slog.Error("failed to initialize k8s client", "err", err)
 	}
-	saHandler := handlers.NewServiceAccountsHandler(uctlClient, k8sClient)
+	saService := serviceaccounts.NewService(uctlClient, k8sClient)
+	saHandler := handlers.NewServiceAccountsHandler(saService)
 
 	r.Mount("/serviceaccounts", routes.ServiceAccountsRouter(cfg, saHandler))
 

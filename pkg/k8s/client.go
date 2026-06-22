@@ -56,3 +56,12 @@ func (c *K8sClient) Namespaces(ctx context.Context) (*corev1.NamespaceList, erro
 
 	return ns, nil
 }
+
+func (c *K8sClient) ServiceAccounts(ctx context.Context, namespace string) (*corev1.ServiceAccountList, error) {
+	serviceAccounts, err := c.clientset.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("list serviceaccounts: %w", err)
+	}
+
+	return serviceAccounts, nil
+}
