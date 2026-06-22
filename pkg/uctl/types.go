@@ -12,7 +12,17 @@ type Permission struct {
 	Resources []Resource `json:"resources"`
 }
 
+type Kind string
+
+const (
+	Organization Kind = "organization"
+	Project      Kind = "project"
+	Domain       Kind = "domain"
+)
+
 type Resource struct {
-	Kind string `json:"kind"`
-	Path string `json:"path"`
+	Kind         Kind   `json:"kind"`
+	Organization string `json:"organization"`
+	Domain       string `json:"domain"`
+	Project      string `json:"project"`
 }

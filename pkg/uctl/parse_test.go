@@ -35,16 +35,16 @@ func TestParsePermissions(t *testing.T) {
 					Name: "admin",
 					Role: "admin",
 					Resources: []Resource{
-						{Kind: "organization", Path: "union-nav"},
+						{Kind: "organization", Organization: "union-nav"},
 					},
 				},
 				{
 					Name: "dataplattform-project-owners",
 					Role: "admin",
 					Resources: []Resource{
-						{Kind: "project", Path: "union-nav/development/dataplattform"},
-						{Kind: "project", Path: "union-nav/production/dataplattform"},
-						{Kind: "project", Path: "union-nav/staging/dataplattform"},
+						{Kind: "project", Organization: "union-nav", Domain: "development", Project: "dataplattform"},
+						{Kind: "project", Organization: "union-nav", Domain: "production", Project: "dataplattform"},
+						{Kind: "project", Organization: "union-nav", Domain: "staging", Project: "dataplattform"},
 					},
 				},
 			},
@@ -57,7 +57,7 @@ func TestParsePermissions(t *testing.T) {
 					Name: "admin",
 					Role: "admin",
 					Resources: []Resource{
-						{Kind: "organization", Path: "union-nav"},
+						{Kind: "organization", Organization: "union-nav"},
 					},
 				},
 			},
@@ -78,15 +78,9 @@ func TestParsePermissions(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:  "resource field without brackets yields empty resources",
-			input: `[{"Name":"admin","Role":"admin","Resource":"organization"}]`,
-			want: []Permission{
-				{
-					Name:      "admin",
-					Role:      "admin",
-					Resources: []Resource{},
-				},
-			},
+			name:    "resource field without brackets returns error",
+			input:   `[{"Name":"admin","Role":"admin","Resource":"organization"}]`,
+			wantErr: true,
 		},
 	}
 

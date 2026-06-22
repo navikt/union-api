@@ -29,7 +29,7 @@ func (h ServiceAccountsHandler) GetServiceAccounts(w http.ResponseWriter, r *htt
 		return
 	}
 
-	assignments, err := h.uctlClient.GetIdentityAssignments(principal.Email)
+	permissions, err := h.uctlClient.GetIdentityAssignments(principal.Email)
 	if err != nil {
 		slog.Error("failed to fetch identity assignments", "error", err)
 		http.Error(w, "failed to fetch identity assignments", http.StatusInternalServerError)
@@ -48,6 +48,6 @@ func (h ServiceAccountsHandler) GetServiceAccounts(w http.ResponseWriter, r *htt
 		slog.Info(ns.Name)
 	}
 
-	json, err := json.Marshal(assignments)
+	json, err := json.Marshal(permissions)
 	w.Write(json)
 }
