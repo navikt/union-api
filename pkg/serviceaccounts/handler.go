@@ -25,6 +25,7 @@ func (h Handler) GetServiceAccounts(w http.ResponseWriter, r *http.Request) {
 	accounts, err := h.service.GetServiceAccounts(r.Context(), principal)
 	if err != nil {
 		http.Error(w, "Unable to fetch serviceaccounts", http.StatusInternalServerError)
+		return
 	}
 
 	json, err := json.Marshal(accounts)

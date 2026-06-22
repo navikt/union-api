@@ -42,17 +42,21 @@ func (s Service) GetServiceAccounts(ctx context.Context, principal *middleware.P
 			}
 
 			k8sServiceAccounts, err := s.k8sClient.ServiceAccounts(ctx, ns)
+			if err != nil {
+				slog.Error("faild to fetch kubernetes service accounts", "error", err)
+				return nil, fmt.Errorf("faild to fetch kubernetes service accounts")
+			}
 			for _, sa := range k8sServiceAccounts.Items {
 				if sa.Name == "default" {
 					continue
 				}
-				wifAnnotation, ok := sa.Annotations["iam.gke.io/gcp-service-account"]
+				gsa, ok := sa.Annotations["iam.gke.io/gcp-service-account"]
 				if !ok {
 					continue
 				}
 				serviceAccounts = append(serviceAccounts, ServiceAccount{
 					K8sServiceAccount:    sa.Name,
-					GoogleServiceAccount: wifAnnotation,
+					GoogleServiceAccount: gsa,
 					UnionProject:         resource.Project,
 					UnionDomain:          resource.Domain,
 				})
