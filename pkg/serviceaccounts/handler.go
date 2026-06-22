@@ -1,18 +1,19 @@
 package serviceaccounts
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/navikt/union-api/pkg/middleware"
+	"github.com/navikt/union-api/web"
 )
 
 type Handler struct {
-	service Service
+	service  Service
+	renderer *web.Renderer
 }
 
-func NewHandler(service Service) Handler {
-	return Handler{service}
+func NewHandler(service Service, renderer *web.Renderer) Handler {
+	return Handler{service, renderer}
 }
 
 func (h Handler) GetServiceAccounts(w http.ResponseWriter, r *http.Request) {
@@ -24,10 +25,9 @@ func (h Handler) GetServiceAccounts(w http.ResponseWriter, r *http.Request) {
 
 	accounts, err := h.service.GetServiceAccounts(r.Context(), principal)
 	if err != nil {
-		http.Error(w, "Unable to fetch serviceaccounts", http.StatusInternalServerError)
+		http.Error(w, "Unable to fetch service accounts", http.StatusInternalServerError)
 		return
 	}
 
-	json, err := json.Marshal(accounts)
-	w.Write(json)
+	h.renderer.Render(w, "serviceaccounts", principal, groupServiceAccounts(accounts))
 }

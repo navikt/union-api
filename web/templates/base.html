@@ -1,0 +1,30 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Union</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">Union</span>
+
+  <ul class="nav-links">
+    {{range .Nav}}
+    <li>
+      <a href="{{.Path}}"{{if eq $.Active .Key}} class="active"{{end}}>{{.Label}}</a>
+    </li>
+    {{end}}
+  </ul>
+
+  <span class="nav-user">{{.User}}</span>
+</nav>
+
+<main>
+  {{block "content" .}}{{end}}
+</main>
+
+</body>
+</html>{{end}}

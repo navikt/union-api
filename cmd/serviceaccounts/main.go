@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/go-chi/chi/v5"
@@ -12,6 +13,7 @@ import (
 	"github.com/navikt/union-api/pkg/server"
 	"github.com/navikt/union-api/pkg/serviceaccounts"
 	"github.com/navikt/union-api/pkg/uctl"
+	"github.com/navikt/union-api/web"
 )
 
 func main() {
@@ -28,7 +30,22 @@ func main() {
 
 	slog.SetLogLoggerLevel(cfg.LogLevel)
 
+	renderer, err := web.New()
+	if err != nil {
+		slog.Error("failed to initialise renderer", "err", err)
+		os.Exit(1)
+	}
+
 	r := chi.NewRouter()
+
+	// Static files are served without session middleware so CSS loads correctly
+	// on the login-redirect path.
+	r.Handle("/static/*", http.StripPrefix("/static", http.FileServer(http.FS(web.StaticFS))))
+
+	// Redirect root to the service accounts page.
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/serviceaccounts", http.StatusFound)
+	})
 
 	if !cfg.DevMode {
 		authHandler, err := auth.NewHandler(context.Background(), cfg)
@@ -45,7 +62,7 @@ func main() {
 		slog.Error("failed to initialize k8s client", "err", err)
 	}
 	saService := serviceaccounts.NewService(uctlClient, k8sClient)
-	saHandler := serviceaccounts.NewHandler(saService)
+	saHandler := serviceaccounts.NewHandler(saService, renderer)
 
 	r.Mount("/serviceaccounts", serviceaccounts.Router(cfg, saHandler))
 
