@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"encoding/base64"
@@ -12,10 +12,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// newTestAuthHandler builds an AuthHandler with a fake oauth2.Config that
+// newTestHandler builds a Handler with a fake oauth2.Config that
 // uses a dummy auth URL. No network calls are made during construction.
-func newTestAuthHandler() *AuthHandler {
-	return &AuthHandler{
+func newTestHandler() *Handler {
+	return &Handler{
 		oauth2Config: &oauth2.Config{
 			ClientID: "test-client",
 			Endpoint: oauth2.Endpoint{
@@ -88,7 +88,7 @@ func TestLogin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			h := newTestAuthHandler()
+			h := newTestHandler()
 			req := httptest.NewRequest(http.MethodGet, "/oauth2/login"+tt.query, nil)
 			rr := httptest.NewRecorder()
 			h.Login(rr, req)
@@ -139,7 +139,7 @@ func TestLogin_SecureCookieFlag(t *testing.T) {
 	t.Run("secureCookies=true sets Secure flag", func(t *testing.T) {
 		t.Parallel()
 
-		h := newTestAuthHandler()
+		h := newTestHandler()
 		h.secureCookies = true
 		req := httptest.NewRequest(http.MethodGet, "/oauth2/login", nil)
 		rr := httptest.NewRecorder()
@@ -159,7 +159,7 @@ func TestLogin_SecureCookieFlag(t *testing.T) {
 	t.Run("secureCookies=false omits Secure flag", func(t *testing.T) {
 		t.Parallel()
 
-		h := newTestAuthHandler() // secureCookies defaults to false
+		h := newTestHandler() // secureCookies defaults to false
 		req := httptest.NewRequest(http.MethodGet, "/oauth2/login", nil)
 		rr := httptest.NewRecorder()
 		h.Login(rr, req)
@@ -238,7 +238,7 @@ func TestCallback_ErrorCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			h := &AuthHandler{}
+			h := &Handler{}
 			req := httptest.NewRequest(http.MethodGet, tt.rawURL, nil)
 			if tt.cookie != nil {
 				req.AddCookie(tt.cookie)

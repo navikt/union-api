@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"context"
@@ -27,21 +27,21 @@ type oauthState struct {
 	Redirect string `json:"redirect"`
 }
 
-type AuthHandler struct {
+type Handler struct {
 	oauth2Config  *oauth2.Config
 	verifier      *oidc.IDTokenVerifier
 	secureCookies bool
 	sessionSecret []byte
 }
 
-func (a *AuthHandler) Verifier() *oidc.IDTokenVerifier {
+func (a *Handler) Verifier() *oidc.IDTokenVerifier {
 	return a.verifier
 }
 
-// NewAuthHandler creates an AuthHandler by discovering the EntraID OIDC
+// NewHandler creates a Handler by discovering the EntraID OIDC
 // endpoints and building the OAuth2 config. It must be called after the
 // provider is reachable (i.e. at server startup, not in init()).
-func NewAuthHandler(ctx context.Context, cfg *config.Config) (*AuthHandler, error) {
+func NewHandler(ctx context.Context, cfg *config.Config) (*Handler, error) {
 	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL())
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func NewAuthHandler(ctx context.Context, cfg *config.Config) (*AuthHandler, erro
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.EntraIDClientID})
 
-	return &AuthHandler{
+	return &Handler{
 		oauth2Config:  oauth2Config,
 		verifier:      verifier,
 		secureCookies: cfg.SecureCookies(),
@@ -67,7 +67,7 @@ func NewAuthHandler(ctx context.Context, cfg *config.Config) (*AuthHandler, erro
 
 // Login redirects the browser to the EntraID authorization endpoint.
 // It encodes the original request path and a CSRF nonce into the state parameter.
-func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (a *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	nonce, err := generateNonce()
 	if err != nil {
 		slog.Error("login: failed to generate nonce", "err", err)
@@ -108,7 +108,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // Callback handles the redirect back from EntraID, validates the state/CSRF
 // cookie, exchanges the authorization code for tokens, and stores the raw ID
 // token in a session cookie before redirecting to the originally-requested URL.
-func (a *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
+func (a *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Validate state parameter.
 	rawState := r.URL.Query().Get("state")
 	if rawState == "" {
