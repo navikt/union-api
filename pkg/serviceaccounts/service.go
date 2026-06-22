@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/navikt/union-api/pkg/auth"
 	"github.com/navikt/union-api/pkg/k8s"
-	"github.com/navikt/union-api/pkg/middleware"
 	"github.com/navikt/union-api/pkg/uctl"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -23,7 +23,7 @@ func NewService(uctlClient uctl.UCTLClient, k8sClient *k8s.K8sClient) Service {
 	}
 }
 
-func (s Service) GetServiceAccounts(ctx context.Context, principal *middleware.Principal) ([]ServiceAccount, error) {
+func (s Service) GetServiceAccounts(ctx context.Context, principal *auth.Principal) ([]ServiceAccount, error) {
 	permissions, err := s.uctlClient.GetIdentityAssignments(principal.Email)
 	if err != nil {
 		slog.Error("failed to fetch identity assignments", "error", err)

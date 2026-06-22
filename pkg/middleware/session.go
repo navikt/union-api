@@ -2,86 +2,17 @@ package middleware
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strings"
-	"time"
 
+	"github.com/navikt/union-api/pkg/auth"
 	"github.com/navikt/union-api/pkg/config"
 )
 
 type contextKey string
 
 const principalKey contextKey = "principal"
-
-// Principal holds the identity of the authenticated user.
-type Principal struct {
-	Email string
-	Name  string
-}
-
-// sessionClaims is the payload stored in the signed session cookie.
-type sessionClaims struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
-	Exp   int64  `json:"exp"` // Unix timestamp
-}
-
-// CreateSessionToken creates a compact HMAC-SHA256 signed session token from
-// the given claims. The returned string is safe to store in a cookie.
-// Format: base64url(json payload) + "." + base64url(hmac signature)
-func CreateSessionToken(secret []byte, email, name string, expiry time.Time) (string, error) {
-	claims := sessionClaims{Email: email, Name: name, Exp: expiry.Unix()}
-	payloadBytes, err := json.Marshal(claims)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal session claims: %w", err)
-	}
-
-	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadBytes)
-
-	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(encodedPayload))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-
-	return encodedPayload + "." + sig, nil
-}
-
-func verifySessionToken(secret []byte, token string) (*sessionClaims, error) {
-	parts := strings.SplitN(token, ".", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid token format")
-	}
-
-	// Constant-time comparison to prevent timing attacks.
-	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(parts[0]))
-	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expectedSig), []byte(parts[1])) {
-		return nil, fmt.Errorf("invalid signature")
-	}
-
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid payload encoding: %w", err)
-	}
-
-	var claims sessionClaims
-	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
-		return nil, fmt.Errorf("invalid payload: %w", err)
-	}
-
-	if time.Now().After(time.Unix(claims.Exp, 0)) {
-		return nil, fmt.Errorf("session expired")
-	}
-
-	return &claims, nil
-}
 
 // NewSessionMiddleware returns a middleware that enforces authentication.
 //
@@ -97,7 +28,7 @@ func NewSessionMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cfg.DevMode {
-				ctx := context.WithValue(r.Context(), principalKey, &Principal{
+				ctx := context.WithValue(r.Context(), principalKey, &auth.Principal{
 					Email: "dev.user@nav.no",
 					Name:  "Dev User",
 				})
@@ -112,19 +43,16 @@ func NewSessionMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, err := verifySessionToken(secret, cookie.Value)
+			principal, err := auth.VerifySessionToken(secret, cookie.Value)
 			if err != nil {
 				slog.Warn("session: token verification failed, redirecting to login", "err", err)
 				redirectToLogin(w, r)
 				return
 			}
 
-			slog.Info("session: authenticated", "email", claims.Email)
+			slog.Info("session: authenticated", "email", principal.Email)
 
-			ctx := context.WithValue(r.Context(), principalKey, &Principal{
-				Email: claims.Email,
-				Name:  claims.Name,
-			})
+			ctx := context.WithValue(r.Context(), principalKey, principal)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -132,8 +60,8 @@ func NewSessionMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 
 // PrincipalFromContext retrieves the authenticated Principal from the context.
 // Returns nil, false if no principal is present.
-func PrincipalFromContext(ctx context.Context) (*Principal, bool) {
-	p, ok := ctx.Value(principalKey).(*Principal)
+func PrincipalFromContext(ctx context.Context) (*auth.Principal, bool) {
+	p, ok := ctx.Value(principalKey).(*auth.Principal)
 	return p, ok
 }
 

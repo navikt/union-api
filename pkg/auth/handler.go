@@ -11,7 +11,6 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/navikt/union-api/pkg/config"
-	"github.com/navikt/union-api/pkg/middleware"
 	"golang.org/x/oauth2"
 )
 
@@ -200,7 +199,7 @@ func (a *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	// Create a compact signed session token — the raw ID token is too large
 	// for a browser cookie (EntraID tokens can exceed 4 KB).
-	sessionToken, err := middleware.CreateSessionToken(
+	sessionToken, err := CreateSessionToken(
 		a.sessionSecret,
 		oidcClaims.PreferredUsername,
 		oidcClaims.Name,

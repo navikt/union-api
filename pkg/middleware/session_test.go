@@ -8,98 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/union-api/pkg/auth"
 	"github.com/navikt/union-api/pkg/config"
 )
 
 var testSecret = []byte("supersecrettestkey1234567890abcd")
-
-// ---------------------------------------------------------------------------
-// CreateSessionToken / verifySessionToken
-// ---------------------------------------------------------------------------
-
-func TestCreateAndVerifySessionToken_RoundTrip(t *testing.T) {
-	t.Parallel()
-
-	expiry := time.Now().Add(time.Hour)
-	token, err := CreateSessionToken(testSecret, "alice@nav.no", "Alice", expiry)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	claims, err := verifySessionToken(testSecret, token)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if claims.Email != "alice@nav.no" {
-		t.Errorf("email: got %q, want %q", claims.Email, "alice@nav.no")
-	}
-	if claims.Name != "Alice" {
-		t.Errorf("name: got %q, want %q", claims.Name, "Alice")
-	}
-}
-
-func TestVerifySessionToken_Errors(t *testing.T) {
-	t.Parallel()
-
-	validToken, _ := CreateSessionToken(testSecret, "alice@nav.no", "Alice", time.Now().Add(time.Hour))
-	expiredToken, _ := CreateSessionToken(testSecret, "alice@nav.no", "Alice", time.Now().Add(-time.Minute))
-	parts := strings.SplitN(validToken, ".", 2)
-
-	tests := []struct {
-		name    string
-		secret  []byte
-		token   string
-		wantErr string
-	}{
-		{
-			name:    "no dot separator",
-			secret:  testSecret,
-			token:   "nodottoken",
-			wantErr: "invalid token format",
-		},
-		{
-			// Swap in a different payload — the original signature no longer covers it.
-			name:    "tampered payload",
-			secret:  testSecret,
-			token:   "dGFtcGVyZWQ." + parts[1], // "tampered" in RawURLEncoding
-			wantErr: "invalid signature",
-		},
-		{
-			// Keep the original payload but replace the signature.
-			name:    "tampered signature",
-			secret:  testSecret,
-			token:   parts[0] + ".dGFtcGVyZWRzaWc", // "tamperedsig" in RawURLEncoding
-			wantErr: "invalid signature",
-		},
-		{
-			// Correct token but verified with a different secret.
-			name:    "wrong secret",
-			secret:  []byte("different-secret-123456789abcdef"),
-			token:   validToken,
-			wantErr: "invalid signature",
-		},
-		{
-			name:    "expired token",
-			secret:  testSecret,
-			token:   expiredToken,
-			wantErr: "session expired",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			_, err := verifySessionToken(tt.secret, tt.token)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("error %q does not contain %q", err.Error(), tt.wantErr)
-			}
-		})
-	}
-}
 
 // ---------------------------------------------------------------------------
 // PrincipalFromContext
@@ -111,7 +24,7 @@ func TestPrincipalFromContext(t *testing.T) {
 	t.Run("returns principal when present", func(t *testing.T) {
 		t.Parallel()
 
-		want := &Principal{Email: "alice@nav.no", Name: "Alice"}
+		want := &auth.Principal{Email: "alice@nav.no", Name: "Alice"}
 		ctx := context.WithValue(context.Background(), principalKey, want)
 
 		got, ok := PrincipalFromContext(ctx)
@@ -145,7 +58,7 @@ func TestNewSessionMiddleware_DevMode(t *testing.T) {
 
 	cfg := &config.Config{DevMode: true}
 
-	var gotPrincipal *Principal
+	var gotPrincipal *auth.Principal
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPrincipal, _ = PrincipalFromContext(r.Context())
 	})
@@ -175,7 +88,7 @@ func TestNewSessionMiddleware_ProdMode(t *testing.T) {
 
 	cfg := &config.Config{SessionSecret: string(testSecret)}
 
-	validToken, _ := CreateSessionToken(testSecret, "alice@nav.no", "Alice", time.Now().Add(time.Hour))
+	validToken, _ := auth.CreateSessionToken(testSecret, "alice@nav.no", "Alice", time.Now().Add(time.Hour))
 
 	tests := []struct {
 		name           string
@@ -208,7 +121,7 @@ func TestNewSessionMiddleware_ProdMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var gotPrincipal *Principal
+			var gotPrincipal *auth.Principal
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gotPrincipal, _ = PrincipalFromContext(r.Context())
 			})
