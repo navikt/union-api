@@ -112,6 +112,9 @@ func LoadConfig() (*Config, error) {
 	if cfg.SessionSecret == "" {
 		return nil, fmt.Errorf("session_secret (SESSION_SECRET) is required")
 	}
+	if len(cfg.SessionSecret) < 32 {
+		return nil, fmt.Errorf("session_secret (SESSION_SECRET) must be at least 32 characters")
+	}
 	if cfg.UnionConfig.ClientID == "" {
 		return nil, fmt.Errorf("union.client_id (UNION_CLIENT_ID) is required")
 	}
