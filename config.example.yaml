@@ -1,10 +1,11 @@
 entra_id:
   tenant_id: 62366534-1ec3-4962-8869-9b5535279d0b
   client_id: 2d9d2088-1162-4358-9032-00436b737ef5
-  client_secret: placeholder # set environment variable `ENTRA_ID_CLIENT_SECRET` in production environments.
+  # client_secret is injected via the ENTRA_ID_CLIENT_SECRET environment variable
+  # and is intentionally kept out of this file so secrets never live in a ConfigMap.
 
 base_url: http://localhost:8080
-session_secret: placeholder # set environment variable `SESSION_SECRET` in production evironments.
+# session_secret is injected via the SESSION_SECRET environment variable.
 dev_mode: false
 
 logging:

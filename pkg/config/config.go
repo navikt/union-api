@@ -65,6 +65,18 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+	// Secrets are injected via environment variables only and must never live in
+	// the config file (a ConfigMap in production). viper.Unmarshal decodes only
+	// the keys returned by AllKeys(), which does not enumerate AutomaticEnv
+	// variables; each secret must therefore be bound explicitly, or it is
+	// silently dropped during Unmarshal whenever the key is absent from the file.
+	if err := viper.BindEnv("session_secret", "SESSION_SECRET"); err != nil {
+		return nil, fmt.Errorf("unable to bind SESSION_SECRET: %w", err)
+	}
+	if err := viper.BindEnv("entra_id.client_secret", "ENTRA_ID_CLIENT_SECRET"); err != nil {
+		return nil, fmt.Errorf("unable to bind ENTRA_ID_CLIENT_SECRET: %w", err)
+	}
+
 	viper.SetDefault("logging.format", "text")
 	viper.SetDefault("logging.level", "INFO")
 
