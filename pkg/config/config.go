@@ -55,33 +55,35 @@ func (c *Config) SecureCookies() bool {
 	return strings.HasPrefix(c.BaseURL, "https://")
 }
 
-func LoadConfig() (*Config, error) {
-	if cf := os.Getenv("CONFIG_FILE"); cf != "" {
-		viper.SetConfigFile(cf)
-		if err := viper.ReadInConfig(); err != nil {
+func LoadConfig(configFile string) (*Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if configFile != "" {
+		v.SetConfigFile(configFile)
+		if err := v.ReadInConfig(); err != nil {
 			return nil, fmt.Errorf("unable to read config file: %w", err)
 		}
 	}
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Secrets are injected via environment variables only and must never live in
 	// the config file (a ConfigMap in production). viper.Unmarshal decodes only
 	// the keys returned by AllKeys(), which does not enumerate AutomaticEnv
 	// variables; each secret must therefore be bound explicitly, or it is
 	// silently dropped during Unmarshal whenever the key is absent from the file.
-	if err := viper.BindEnv("session_secret", "SESSION_SECRET"); err != nil {
+	if err := v.BindEnv("session_secret", "SESSION_SECRET"); err != nil {
 		return nil, fmt.Errorf("unable to bind SESSION_SECRET: %w", err)
 	}
-	if err := viper.BindEnv("entra_id.client_secret", "ENTRA_ID_CLIENT_SECRET"); err != nil {
+	if err := v.BindEnv("entra_id.client_secret", "ENTRA_ID_CLIENT_SECRET"); err != nil {
 		return nil, fmt.Errorf("unable to bind ENTRA_ID_CLIENT_SECRET: %w", err)
 	}
 
-	viper.SetDefault("logging.format", "text")
-	viper.SetDefault("logging.level", "INFO")
+	v.SetDefault("logging.format", "text")
+	v.SetDefault("logging.level", "INFO")
 
 	var cfg Config
-	err := viper.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {
+	err := v.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {
 		dc.TagName = "yaml"
 		dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.TextUnmarshallerHookFunc(),
@@ -97,48 +99,52 @@ func LoadConfig() (*Config, error) {
 		return &cfg, nil
 	}
 
+	return &cfg, validate(&cfg)
+}
+
+func validate(cfg *Config) error {
 	if cfg.EntraID.TenantID == "" {
-		return nil, fmt.Errorf("entra_id.tenant_id (ENTRA_ID_TENANT_ID) is required")
+		return fmt.Errorf("entra_id.tenant_id (ENTRA_ID_TENANT_ID) is required")
 	}
 	if cfg.EntraID.ClientID == "" {
-		return nil, fmt.Errorf("entra_id.client_id (ENTRA_ID_CLIENT_ID) is required")
+		return fmt.Errorf("entra_id.client_id (ENTRA_ID_CLIENT_ID) is required")
 	}
 	if cfg.EntraID.ClientSecret == "" {
-		return nil, fmt.Errorf("entra_id.client_secret (ENTRA_ID_CLIENT_SECRET) is required")
+		return fmt.Errorf("entra_id.client_secret (ENTRA_ID_CLIENT_SECRET) is required")
 	}
 	if cfg.BaseURL == "" {
-		return nil, fmt.Errorf("base_url (BASE_URL) is required")
+		return fmt.Errorf("base_url (BASE_URL) is required")
 	}
 	if cfg.SessionSecret == "" {
-		return nil, fmt.Errorf("session_secret (SESSION_SECRET) is required")
+		return fmt.Errorf("session_secret (SESSION_SECRET) is required")
 	}
 	if len(cfg.SessionSecret) < 32 {
-		return nil, fmt.Errorf("session_secret (SESSION_SECRET) must be at least 32 characters")
+		return fmt.Errorf("session_secret (SESSION_SECRET) must be at least 32 characters")
 	}
 	if cfg.UnionConfig.ClientID == "" {
-		return nil, fmt.Errorf("union.client_id (UNION_CLIENT_ID) is required")
+		return fmt.Errorf("union.client_id (UNION_CLIENT_ID) is required")
 	}
 	if cfg.UnionConfig.ClientSecretEnvVar == "" {
-		return nil, fmt.Errorf("union.client_secret_env_var (UNION_CLIENT_SECRET_ENV_VAR) is required")
+		return fmt.Errorf("union.client_secret_env_var (UNION_CLIENT_SECRET_ENV_VAR) is required")
 	}
 	if os.Getenv(cfg.UnionConfig.ClientSecretEnvVar) == "" {
-		return nil, fmt.Errorf("%s is required", cfg.UnionConfig.ClientSecretEnvVar)
+		return fmt.Errorf("%s is required", cfg.UnionConfig.ClientSecretEnvVar)
 	}
 	if cfg.UnionConfig.Endpoint == "" {
-		return nil, fmt.Errorf("union.endpoint (UNION_ENDPOINT) is required")
+		return fmt.Errorf("union.endpoint (UNION_ENDPOINT) is required")
 	}
 	if cfg.UnionConfig.Org == "" {
-		return nil, fmt.Errorf("union.org (UNION_ORG) is required")
+		return fmt.Errorf("union.org (UNION_ORG) is required")
 	}
 	if cfg.GKEConfig.FleetHostProjectNumber == "" {
-		return nil, fmt.Errorf("gke.fleet_host_project_number (GKE_FLEET_HOST_PROJECT_NUMBER) is required")
+		return fmt.Errorf("gke.fleet_host_project_number (GKE_FLEET_HOST_PROJECT_NUMBER) is required")
 	}
 	if cfg.GKEConfig.MembershipName == "" {
-		return nil, fmt.Errorf("gke.membership_name (GKE_FLEET_MEMBERSHIP_NAME) is required")
+		return fmt.Errorf("gke.membership_name (GKE_FLEET_MEMBERSHIP_NAME) is required")
 	}
 	if cfg.GKEConfig.Location == "" {
-		return nil, fmt.Errorf("gke.location (GKE_FLEET_LOCATION) is required")
+		return fmt.Errorf("gke.location (GKE_FLEET_LOCATION) is required")
 	}
 
-	return &cfg, nil
+	return nil
 }

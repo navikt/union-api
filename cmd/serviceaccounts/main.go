@@ -40,7 +40,7 @@ const requestTimeout = 20 * time.Second
 const trustedProxyHops = 2
 
 func main() {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(os.Getenv("CONFIG_FILE"))
 	if err != nil {
 		slog.Error("configuration error", "err", err)
 		os.Exit(1)
