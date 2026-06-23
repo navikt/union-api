@@ -6,8 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/navikt/union-api/pkg/k8s"
 	"github.com/navikt/union-api/pkg/uctl"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -54,91 +56,74 @@ func (c *Config) SecureCookies() bool {
 }
 
 func LoadConfig() (*Config, error) {
-	devMode := os.Getenv("DEV_MODE") == "true"
+	if cf := os.Getenv("CONFIG_FILE"); cf != "" {
+		viper.SetConfigFile(cf)
+		if err := viper.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("unable to read config file: %w", err)
+		}
+	}
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	logFormat := os.Getenv("LOGGING_FORMAT")
-	if logFormat == "" {
-		logFormat = "text"
+	viper.SetDefault("logging.format", "text")
+	viper.SetDefault("logging.level", "INFO")
+
+	var cfg Config
+	err := viper.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {
+		dc.TagName = "yaml"
+		dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.TextUnmarshallerHookFunc(),
+			dc.DecodeHook,
+		)
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal config: %w", err)
 	}
 
-	logLevelStr := os.Getenv("LOGGING_LEVEL")
-	logLevel := slog.LevelInfo.Level()
-	switch logLevelStr {
-	case "debug":
-		logLevel = slog.LevelDebug.Level()
-	case "error":
-		logLevel = slog.LevelError.Level()
-	}
-
-	cfg := &Config{
-		EntraID: EntraIDConfig{
-			TenantID:     os.Getenv("ENTRA_ID_TENANT_ID"),
-			ClientID:     os.Getenv("ENTRA_ID_CLIENT_ID"),
-			ClientSecret: os.Getenv("ENTRA_ID_CLIENT_SECRET"),
-		},
-		BaseURL:       os.Getenv("BASE_URL"),
-		SessionSecret: os.Getenv("SESSION_SECRET"),
-		DevMode:       devMode,
-		Logging: LoggingConfig{
-			Format: logFormat,
-			Level:  logLevel,
-		},
-		UnionConfig: uctl.UnionConfig{
-			ClientID:           os.Getenv("UNION_CLIENT_ID"),
-			ClientSecretEnvVar: os.Getenv("UNION_CLIENT_SECRET_ENV_VAR"),
-			Endpoint:           os.Getenv("UNION_ENDPOINT"),
-			Org:                os.Getenv("UNION_ORG"),
-		},
-		GKEConfig: k8s.GKEConfig{
-			FleetHostProjectNumber: os.Getenv("GKE_FLEET_HOST_PROJECT_NUMBER"),
-			MembershipName:         os.Getenv("GKE_FLEET_MEMBERSHIP_NAME"),
-			Location:               os.Getenv("GKE_FLEET_LOCATION"),
-		},
-	}
-
-	if devMode {
-		return cfg, nil
+	if cfg.DevMode {
+		return &cfg, nil
 	}
 
 	if cfg.EntraID.TenantID == "" {
-		return nil, fmt.Errorf("ENTRA_ID_TENANT_ID is required")
+		return nil, fmt.Errorf("entra_id.tenant_id (ENTRA_ID_TENANT_ID) is required")
 	}
 	if cfg.EntraID.ClientID == "" {
-		return nil, fmt.Errorf("ENTRA_ID_CLIENT_ID is required")
+		return nil, fmt.Errorf("entra_id.client_id (ENTRA_ID_CLIENT_ID) is required")
 	}
 	if cfg.EntraID.ClientSecret == "" {
-		return nil, fmt.Errorf("ENTRA_ID_CLIENT_SECRET is required")
+		return nil, fmt.Errorf("entra_id.client_secret (ENTRA_ID_CLIENT_SECRET) is required")
 	}
 	if cfg.BaseURL == "" {
-		return nil, fmt.Errorf("BASE_URL is required")
+		return nil, fmt.Errorf("base_url (BASE_URL) is required")
 	}
 	if cfg.SessionSecret == "" {
-		return nil, fmt.Errorf("SESSION_SECRET is required")
+		return nil, fmt.Errorf("session_secret (SESSION_SECRET) is required")
 	}
 	if cfg.UnionConfig.ClientID == "" {
-		return nil, fmt.Errorf("UNION_CLIENT_ID is required")
+		return nil, fmt.Errorf("union.client_id (UNION_CLIENT_ID) is required")
 	}
 	if cfg.UnionConfig.ClientSecretEnvVar == "" {
-		return nil, fmt.Errorf("UNION_CLIENT_SECRET_ENV_VAR is required")
+		return nil, fmt.Errorf("union.client_secret_env_var (UNION_CLIENT_SECRET_ENV_VAR) is required")
 	}
 	if os.Getenv(cfg.UnionConfig.ClientSecretEnvVar) == "" {
 		return nil, fmt.Errorf("%s is required", cfg.UnionConfig.ClientSecretEnvVar)
 	}
 	if cfg.UnionConfig.Endpoint == "" {
-		return nil, fmt.Errorf("UNION_ENDPOINT is required")
+		return nil, fmt.Errorf("union.endpoint (UNION_ENDPOINT) is required")
 	}
 	if cfg.UnionConfig.Org == "" {
-		return nil, fmt.Errorf("UNION_ORG is required")
+		return nil, fmt.Errorf("union.org (UNION_ORG) is required")
 	}
 	if cfg.GKEConfig.FleetHostProjectNumber == "" {
-		return nil, fmt.Errorf("GKE_FLEET_HOST_PROJECT_NUMBER is required")
-	}
-	if cfg.GKEConfig.Location == "" {
-		return nil, fmt.Errorf("GKE_FLEET_LOCATION is required")
+		return nil, fmt.Errorf("gke.fleet_host_project_number (GKE_FLEET_HOST_PROJECT_NUMBER) is required")
 	}
 	if cfg.GKEConfig.MembershipName == "" {
-		return nil, fmt.Errorf("GKE_FLEET_MEMBERSHIP_NAME is required")
+		return nil, fmt.Errorf("gke.membership_name (GKE_FLEET_MEMBERSHIP_NAME) is required")
+	}
+	if cfg.GKEConfig.Location == "" {
+		return nil, fmt.Errorf("gke.location (GKE_FLEET_LOCATION) is required")
 	}
 
-	return cfg, nil
+	return &cfg, nil
 }

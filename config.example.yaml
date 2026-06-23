@@ -1,10 +1,10 @@
 entra_id:
   tenant_id: 62366534-1ec3-4962-8869-9b5535279d0b
   client_id: 2d9d2088-1162-4358-9032-00436b737ef5
-  client_secret: secret
+  client_secret: placeholder # set environment variable `ENTRA_ID_CLIENT_SECRET` in production environments.
 
 base_url: http://localhost:8080
-session_secret: secret
+session_secret: placeholder # set environment variable `SESSION_SECRET` in production evironments.
 dev_mode: false
 
 logging:
@@ -13,7 +13,7 @@ logging:
 
 union:
   client_id: 2c7f655b-1b4b-4f29-8c1e-24c011d5a605
-  client_secret_env_var: UNION_CLIENT_SECRET
+  client_secret_env_var: UNION_CLIENT_SECRET # uctl reads the secret from this environment variable.
   endpoint: union.dev.data.nav.no
   org: union-nav
 
