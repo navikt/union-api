@@ -1,23 +1,23 @@
-entraId:
-  tenantID: 62366534-1ec3-4962-8869-9b5535279d0b
-  clientID: 2d9d2088-1162-4358-9032-00436b737ef5
-  clientSecret: secret
+entra_id:
+  tenant_id: 62366534-1ec3-4962-8869-9b5535279d0b
+  client_id: 2d9d2088-1162-4358-9032-00436b737ef5
+  client_secret: secret
 
-baseUrl: http://localhost:8080
-sessionSecret: secret
+base_url: http://localhost:8080
+session_secret: secret
+dev_mode: false
 
 logging:
   format: text
-  level: -4
+  level: DEBUG
 
 union:
-  clientID: 2c7f655b-1b4b-4f29-8c1e-24c011d5a605
-  clientSecret: secret
-  clientSecretEnvVar: UNION_CLIENT_SECRET
+  client_id: 2c7f655b-1b4b-4f29-8c1e-24c011d5a605
+  client_secret_env_var: UNION_CLIENT_SECRET
   endpoint: union.dev.data.nav.no
   org: union-nav
 
-k8s:
-  fleetHostProjectNumber: 161853196256
-  membershipName: dev-union-restricted
-  location: europe-west1
+gke:
+  fleet_host_project_number: "161853196256"
+  fleet_membership_name: dev-union-restricted
+  fleet_location: europe-west1

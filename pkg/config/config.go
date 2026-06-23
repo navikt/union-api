@@ -11,34 +11,33 @@ import (
 )
 
 type Config struct {
-	EntraID EntraIDConfig `yaml:"entraId"`
+	EntraID EntraIDConfig `yaml:"entra_id"`
 
 	Logging LoggingConfig `yaml:"logging"`
 	// BaseURL is the public base URL of this service, used to build the OAuth2 redirect URI.
 	// Example: https://union-api.intern.nav.no
-	BaseURL string `yaml:"baseUrl"`
+	BaseURL string `yaml:"base_url"`
 	// SessionSecret is used to sign session cookies. Must be a random string of at least
 	// 32 characters.
-	SessionSecret string `yaml:"sessionSecret"`
+	SessionSecret string `yaml:"session_secret"`
 	// DevMode disables authentication and injects a stub principal. Never enable in production.
-	DevMode bool `yaml:"devMode"`
+	DevMode bool `yaml:"dev_mode"`
 
 	UnionConfig uctl.UnionConfig `yaml:"union"`
 
-	K8sConfig k8s.K8sConfig `yaml:"k8s"`
+	GKEConfig k8s.GKEConfig `yaml:"gke"`
 }
 
 type EntraIDConfig struct {
-	TenantID     string `yaml:"tenantID"`
-	ClientID     string `yaml:"clientID"`
-	ClientSecret string `yaml:"clientSecret"`
+	TenantID     string `yaml:"tenant_id"`
+	ClientID     string `yaml:"client_id"`
+	ClientSecret string `yaml:"client_secret"`
 }
 
 type LoggingConfig struct {
-	Format string `yaml:"format"`
+	Format string     `yaml:"format"`
 	Level  slog.Level `yaml:"level"`
 }
-
 
 func (c *Config) IssuerURL() string {
 	return fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", c.EntraID.TenantID)
@@ -57,12 +56,12 @@ func (c *Config) SecureCookies() bool {
 func LoadConfig() (*Config, error) {
 	devMode := os.Getenv("DEV_MODE") == "true"
 
-	logFormat := os.Getenv("LOG_FORMAT")
+	logFormat := os.Getenv("LOGGING_FORMAT")
 	if logFormat == "" {
 		logFormat = "text"
 	}
 
-	logLevelStr := os.Getenv("LOG_LEVEL")
+	logLevelStr := os.Getenv("LOGGING_LEVEL")
 	logLevel := slog.LevelInfo.Level()
 	switch logLevelStr {
 	case "debug":
@@ -80,15 +79,17 @@ func LoadConfig() (*Config, error) {
 		BaseURL:       os.Getenv("BASE_URL"),
 		SessionSecret: os.Getenv("SESSION_SECRET"),
 		DevMode:       devMode,
-		LogFormat:     logFormat,
-		LogLevel:      logLevel,
+		Logging: LoggingConfig{
+			Format: logFormat,
+			Level:  logLevel,
+		},
 		UnionConfig: uctl.UnionConfig{
 			ClientID:           os.Getenv("UNION_CLIENT_ID"),
 			ClientSecretEnvVar: os.Getenv("UNION_CLIENT_SECRET_ENV_VAR"),
 			Endpoint:           os.Getenv("UNION_ENDPOINT"),
 			Org:                os.Getenv("UNION_ORG"),
 		},
-		K8sConfig: k8s.K8sConfig{
+		GKEConfig: k8s.GKEConfig{
 			FleetHostProjectNumber: os.Getenv("GKE_FLEET_HOST_PROJECT_NUMBER"),
 			MembershipName:         os.Getenv("GKE_FLEET_MEMBERSHIP_NAME"),
 			Location:               os.Getenv("GKE_FLEET_LOCATION"),
@@ -99,13 +100,13 @@ func LoadConfig() (*Config, error) {
 		return cfg, nil
 	}
 
-	if cfg.EntraIDTenantID == "" {
+	if cfg.EntraID.TenantID == "" {
 		return nil, fmt.Errorf("ENTRA_ID_TENANT_ID is required")
 	}
-	if cfg.EntraIDClientID == "" {
+	if cfg.EntraID.ClientID == "" {
 		return nil, fmt.Errorf("ENTRA_ID_CLIENT_ID is required")
 	}
-	if cfg.EntraIDClientSecret == "" {
+	if cfg.EntraID.ClientSecret == "" {
 		return nil, fmt.Errorf("ENTRA_ID_CLIENT_SECRET is required")
 	}
 	if cfg.BaseURL == "" {
@@ -129,13 +130,13 @@ func LoadConfig() (*Config, error) {
 	if cfg.UnionConfig.Org == "" {
 		return nil, fmt.Errorf("UNION_ORG is required")
 	}
-	if cfg.K8sConfig.FleetHostProjectNumber == "" {
+	if cfg.GKEConfig.FleetHostProjectNumber == "" {
 		return nil, fmt.Errorf("GKE_FLEET_HOST_PROJECT_NUMBER is required")
 	}
-	if cfg.K8sConfig.Location == "" {
+	if cfg.GKEConfig.Location == "" {
 		return nil, fmt.Errorf("GKE_FLEET_LOCATION is required")
 	}
-	if cfg.K8sConfig.MembershipName == "" {
+	if cfg.GKEConfig.MembershipName == "" {
 		return nil, fmt.Errorf("GKE_FLEET_MEMBERSHIP_NAME is required")
 	}
 

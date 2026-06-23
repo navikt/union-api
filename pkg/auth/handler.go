@@ -47,14 +47,14 @@ func NewHandler(ctx context.Context, cfg *config.Config) (*Handler, error) {
 	}
 
 	oauth2Config := &oauth2.Config{
-		ClientID:     cfg.EntraIDClientID,
-		ClientSecret: cfg.EntraIDClientSecret,
+		ClientID:     cfg.EntraID.ClientID,
+		ClientSecret: cfg.EntraID.ClientSecret,
 		RedirectURL:  cfg.RedirectURL(),
 		Endpoint:     provider.Endpoint(),
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.EntraIDClientID})
+	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.EntraID.ClientID})
 
 	return &Handler{
 		oauth2Config:  oauth2Config,

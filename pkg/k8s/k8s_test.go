@@ -12,7 +12,7 @@ import (
 )
 
 func TestConnectGatewayURL(t *testing.T) {
-	cfg := K8sConfig{
+	cfg := GKEConfig{
 		FleetHostProjectNumber: "123456789",
 		Location:               "europe-west1",
 		MembershipName:         "dev-union-restricted",

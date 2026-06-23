@@ -46,12 +46,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if cfg.LogFormat == "json" {
+	if cfg.Logging.Format == "json" {
 		handler := slog.NewJSONHandler(os.Stdout, nil)
 		slog.SetDefault(slog.New(handler))
 	}
 
-	slog.SetLogLoggerLevel(cfg.LogLevel)
+	slog.SetLogLoggerLevel(cfg.Logging.Level)
 
 	renderer, err := web.New()
 	if err != nil {
@@ -74,7 +74,7 @@ func main() {
 	// cluster these come from the workload identity; for local dev mode run
 	// `gcloud auth application-default login` first. A failure here is fatal so
 	// we fail fast at startup instead of nil-panicking on the first request.
-	k8sClient, err := k8s.NewK8sClient(context.Background(), cfg.K8sConfig)
+	k8sClient, err := k8s.NewK8sClient(context.Background(), cfg.GKEConfig)
 	if err != nil {
 		slog.Error("failed to initialize k8s client", "err", err)
 		os.Exit(1)

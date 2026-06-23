@@ -19,7 +19,7 @@ type K8sClient struct {
 	clientset *kubernetes.Clientset
 }
 
-func NewK8sClient(ctx context.Context, cfg K8sConfig) (*K8sClient, error) {
+func NewK8sClient(ctx context.Context, cfg GKEConfig) (*K8sClient, error) {
 	ts, err := google.DefaultTokenSource(ctx, cloudPlatformScope)
 	if err != nil {
 		return nil, fmt.Errorf("get default token source: %w", err)
