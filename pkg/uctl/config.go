@@ -1,8 +1,8 @@
 package uctl
 
 type UnionConfig struct {
-	ClientID           string
-	ClientSecretEnvVar string
-	Endpoint           string
-	Org                string
+	ClientID           string `yaml:"clientID"`
+	ClientSecretEnvVar string `yaml:"clientSecretEnvVar"`
+	Endpoint           string `yaml:"endpoint"`
+	Org                string `yaml:"org"`
 }

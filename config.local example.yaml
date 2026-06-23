@@ -1,15 +1,14 @@
 entraId:
-  entraIDTenantID: 62366534-1ec3-4962-8869-9b5535279d0b
-  entraIDClientID: 2d9d2088-1162-4358-9032-00436b737ef5
-  entraIDClientSecret: secret
+  tenantID: 62366534-1ec3-4962-8869-9b5535279d0b
+  clientID: 2d9d2088-1162-4358-9032-00436b737ef5
+  clientSecret: secret
 
 baseUrl: http://localhost:8080
 sessionSecret: secret
-DevMode: devMode
 
 logging:
-  LogFormat: text
-  LogLevel: debug
+  format: text
+  level: -4
 
 union:
   clientID: 2c7f655b-1b4b-4f29-8c1e-24c011d5a605
