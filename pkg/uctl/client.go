@@ -1,6 +1,7 @@
 package uctl
 
 import (
+	"context"
 	"log/slog"
 )
 
@@ -14,11 +15,11 @@ func NewUCTLClient(config UnionConfig) UCTLClient {
 	}
 }
 
-func (c *UCTLClient) GetIdentityAssignments(user string) ([]Permission, error) {
-	result, err := NewUCTLCommand(c.config).Get().Identityassignments(user).Exec()
+func (c *UCTLClient) GetIdentityAssignments(ctx context.Context, user string) ([]Permission, error) {
+	cmd := NewUCTLCommand(c.config).Get().Identityassignments(user)
+	slog.Debug(cmd.String())
 
-	slog.Debug(NewUCTLCommand(c.config).Get().Identityassignments(user).String())
-
+	result, err := cmd.Exec(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -24,7 +24,7 @@ func NewService(uctlClient uctl.UCTLClient, k8sClient *k8s.K8sClient) Service {
 }
 
 func (s Service) GetServiceAccounts(ctx context.Context, principal *auth.Principal) ([]ServiceAccount, error) {
-	permissions, err := s.uctlClient.GetIdentityAssignments(principal.Email)
+	permissions, err := s.uctlClient.GetIdentityAssignments(ctx, principal.Email)
 	if err != nil {
 		slog.Error("failed to fetch identity assignments", "error", err)
 		return nil, fmt.Errorf("failed to fetch identity assignments")

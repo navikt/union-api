@@ -1,6 +1,7 @@
 package uctl
 
 import (
+	"context"
 	"testing"
 )
 
@@ -61,7 +62,7 @@ func TestUCTLCommand_Exec(t *testing.T) {
 		t.Parallel()
 
 		cmd := UCTLCommand{command: "echo", args: []string{"hello"}}
-		out, err := cmd.Exec()
+		out, err := cmd.Exec(context.Background())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -75,7 +76,7 @@ func TestUCTLCommand_Exec(t *testing.T) {
 		t.Parallel()
 
 		cmd := UCTLCommand{command: "false"}
-		_, err := cmd.Exec()
+		_, err := cmd.Exec(context.Background())
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

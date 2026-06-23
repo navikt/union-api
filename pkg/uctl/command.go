@@ -1,6 +1,8 @@
 package uctl
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -40,10 +42,16 @@ func (c UCTLCommand) Identityassignments(user string) UCTLCommand {
 	return c
 }
 
-func (c UCTLCommand) Exec() ([]byte, error) {
-	cmd := exec.Command(c.command, c.args...)
+func (c UCTLCommand) Exec(ctx context.Context) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, c.command, c.args...)
 	output, err := cmd.Output()
 	if err != nil {
+		// Output() populates ExitError.Stderr when Stderr is unset; surface it
+		// so failures from uctl are diagnosable instead of an opaque exit code.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("failed to execute uctl command %s: %w: %s", c.String(), err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
 		return nil, fmt.Errorf("failed to execute uctl command %s: %w", c.String(), err)
 	}
 
