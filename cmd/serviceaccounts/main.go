@@ -46,10 +46,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	logOpts := &slog.HandlerOptions{Level: cfg.Logging.Level}
+	var logHandler slog.Handler = slog.NewTextHandler(os.Stdout, logOpts)
 	if cfg.Logging.Format == "json" {
-		handler := slog.NewJSONHandler(os.Stdout, nil)
-		slog.SetDefault(slog.New(handler))
+		logHandler = slog.NewJSONHandler(os.Stdout, logOpts)
 	}
+	slog.SetDefault(slog.New(logHandler))
 
 	slog.SetLogLoggerLevel(cfg.Logging.Level)
 
