@@ -10,7 +10,7 @@ spec:
     - name: panda-internal-gateway
       namespace: gateway
   hostnames:
-    - union.console.intern.dev.data.nav.no
+    - union-console.intern.dev.data.nav.no
   rules:
     - matches:
         - path:
