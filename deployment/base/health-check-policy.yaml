@@ -1,0 +1,17 @@
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: union-api
+  namespace: union-api
+spec:
+  default:
+    checkIntervalSec: 10
+    healthyThreshold: 1
+    unhealthyThreshold: 2
+    httpHealthCheck:
+      requestPath: /isalive
+      port: 8080
+  targetRef:
+    group: ""
+    kind: Service
+    name: union-api
