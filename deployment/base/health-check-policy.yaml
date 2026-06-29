@@ -5,12 +5,11 @@ metadata:
   namespace: union-api
 spec:
   default:
-    checkIntervalSec: 10
-    healthyThreshold: 1
-    unhealthyThreshold: 2
-    httpHealthCheck:
-      requestPath: /isalive
-      port: 8080
+    config:
+      type: HTTP
+      httpHealthCheck:
+        port: 8080
+        requestPath: /isalive
   targetRef:
     group: ""
     kind: Service
