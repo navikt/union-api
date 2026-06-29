@@ -20,5 +20,6 @@ test:
 	go test ./...
 
 docker-push:
-	docker build --platform linux/amd64 -t $(IMAGE):$(TAG) .
+	docker build --platform linux/amd64 -t $(IMAGE):$(TAG) -t $(IMAGE):latest .
 	docker push $(IMAGE):$(TAG)
+	docker push $(IMAGE):latest
