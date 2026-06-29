@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: union-api
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: union-api-config
+    files:
+      - config.yaml
+    options:
+      disableNameSuffixHash: true
+
+patches:
+  - path: patches/serviceaccount.yaml
+
+images:
+  - name: union-api
+    newName: europe-west1-docker.pkg.dev/nav-data-images-prod/dataplattform-infra/union-api
+    newTag: latest

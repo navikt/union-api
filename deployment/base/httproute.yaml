@@ -1,0 +1,21 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: union-api
+  namespace: union-api
+spec:
+  parentRefs:
+    # panda-internal-gateway is a shared cluster resource managed in the IAC repo.
+    # This app only references it — it does not own the Gateway.
+    - name: panda-internal-gateway
+      namespace: gateway
+  hostnames:
+    - union.console.intern.dev.data.nav.no
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: union-api
+          port: 80

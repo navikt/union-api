@@ -1,0 +1,6 @@
+.env
+config.local.yaml
+.git/
+bin/
+deployment/
+*.md

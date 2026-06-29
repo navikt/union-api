@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: union-api
+  namespace: union-api
+spec:
+  selector:
+    app: union-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

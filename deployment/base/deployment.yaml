@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: union-api
+  namespace: union-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: union-api
+  template:
+    metadata:
+      labels:
+        app: union-api
+    spec:
+      serviceAccountName: union-api
+
+      # ExternalSecrets (sync-wave -5) create the k8s Secrets before this pod starts.
+      # No explicit initContainer needed — ArgoCD wave ordering handles sequencing.
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: union-api
+          # Image name is a placeholder resolved by the overlay's `images:` block.
+          image: union-api
+          ports:
+            - name: http
+              containerPort: 8080
+
+          env:
+            # Config file path — the YAML config is mounted from the overlay's ConfigMap.
+            # Secrets are excluded from the file and injected as env vars below, matching
+            # the pattern established by config.example.yaml.
+            - name: CONFIG_FILE
+              value: /etc/union-api/config.yaml
+            # Secrets injected individually so they map to the exact env var names the app expects
+            - name: ENTRA_ID_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: entra-id-client-secret
+                  key: client-secret
+            - name: UNION_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: union-client-secret
+                  key: client-secret
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: session-secret
+                  key: session-secret
+
+          livenessProbe:
+            httpGet:
+              path: /isalive
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /isready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              # No CPU limit — avoids Go scheduler throttling under bursts.
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: config
+              mountPath: /etc/union-api
+              readOnly: true
+            # uctl writes state to ~/.uctl at runtime; emptyDir shadows the image
+            # layer directory so writes succeed under readOnlyRootFilesystem.
+            - name: uctl-home
+              mountPath: /home/nonroot/.uctl
+            # uctl may write temp files; provide a writable /tmp under readOnlyRootFilesystem.
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: config
+          configMap:
+            name: union-api-config
+        - name: uctl-home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
