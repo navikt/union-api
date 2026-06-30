@@ -1,0 +1,23 @@
+entra_id:
+  tenant_id: 62366534-1ec3-4962-8869-9b5535279d0b
+  client_id: e73a4eea-4704-4781-b135-a88d34c95676
+  # client_secret is injected via ENTRA_ID_CLIENT_SECRET (ExternalSecret → k8s Secret)
+
+base_url: https://union-console.intern.data.nav.no
+# session_secret is injected via SESSION_SECRET (ExternalSecret → k8s Secret)
+dev_mode: false
+
+logging:
+  format: json
+  level: INFO
+
+union:
+  client_id: 0f7384e8-8269-4a5d-be12-c3668323dbb3
+  client_secret_env_var: UNION_CLIENT_SECRET
+  endpoint: dns:///union.data.nav.no
+  org: union-nav
+
+gke:
+  fleet_host_project_number: "570348207326"
+  fleet_membership_name: prod-union-restricted
+  fleet_location: europe-west1
