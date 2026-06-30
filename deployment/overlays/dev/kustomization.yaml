@@ -15,6 +15,7 @@ configMapGenerator:
 
 patches:
   - path: patches/serviceaccount.yaml
+  - path: patches/httproute.yaml
 
 images:
   - name: union-api

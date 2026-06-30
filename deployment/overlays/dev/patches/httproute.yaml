@@ -1,0 +1,8 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: union-api
+  namespace: union-api
+spec:
+  hostnames:
+    - union-console.intern.dev.data.nav.no

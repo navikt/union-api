@@ -9,8 +9,6 @@ spec:
     # This app only references it — it does not own the Gateway.
     - name: panda-internal-gateway
       namespace: gateway
-  hostnames:
-    - union-console.intern.dev.data.nav.no
   rules:
     - matches:
         - path:
