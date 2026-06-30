@@ -5,4 +5,4 @@ metadata:
   namespace: union-api
 spec:
   hostnames:
-    - union-console.intern.data.nav.no
+    - union-console.data.nav.no

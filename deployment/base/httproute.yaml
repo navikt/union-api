@@ -5,9 +5,7 @@ metadata:
   namespace: union-api
 spec:
   parentRefs:
-    # panda-internal-gateway is a shared cluster resource managed in the IAC repo.
-    # This app only references it — it does not own the Gateway.
-    - name: panda-internal-gateway
+    - name: panda-external-gateway
       namespace: gateway
   rules:
     - matches:

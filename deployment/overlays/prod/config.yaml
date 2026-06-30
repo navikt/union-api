@@ -3,7 +3,7 @@ entra_id:
   client_id: e73a4eea-4704-4781-b135-a88d34c95676
   # client_secret is injected via ENTRA_ID_CLIENT_SECRET (ExternalSecret → k8s Secret)
 
-base_url: https://union-console.intern.data.nav.no
+base_url: https://union-console.data.nav.no
 # session_secret is injected via SESSION_SECRET (ExternalSecret → k8s Secret)
 dev_mode: false
 
