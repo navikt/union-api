@@ -202,3 +202,96 @@ func TestLoadConfig_MissingRequiredFieldErrors(t *testing.T) {
 		t.Errorf("error = %q, want it to mention 'base_url'", err)
 	}
 }
+
+func TestConfig_IssuerURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		tenantID string
+		want     string
+	}{
+		{
+			name:     "formats tenant ID into Entra ID OIDC URL",
+			tenantID: "my-tenant",
+			want:     "https://login.microsoftonline.com/my-tenant/v2.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &config.Config{EntraID: config.EntraIDConfig{TenantID: tt.tenantID}}
+			if got := cfg.IssuerURL(); got != tt.want {
+				t.Errorf("IssuerURL() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_RedirectURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		baseURL string
+		want    string
+	}{
+		{
+			name:    "appends oauth2 callback path to base URL",
+			baseURL: "https://example.com",
+			want:    "https://example.com/oauth2/callback",
+		},
+		{
+			name:    "appends to base URL that already has a path",
+			baseURL: "https://example.com/app",
+			want:    "https://example.com/app/oauth2/callback",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &config.Config{BaseURL: tt.baseURL}
+			if got := cfg.RedirectURL(); got != tt.want {
+				t.Errorf("RedirectURL() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_SecureCookies(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		baseURL string
+		want    bool
+	}{
+		{
+			name:    "https base URL enables secure cookies",
+			baseURL: "https://example.com",
+			want:    true,
+		},
+		{
+			name:    "http base URL disables secure cookies",
+			baseURL: "http://localhost:8080",
+			want:    false,
+		},
+		{
+			name:    "empty base URL disables secure cookies",
+			baseURL: "",
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &config.Config{BaseURL: tt.baseURL}
+			if got := cfg.SecureCookies(); got != tt.want {
+				t.Errorf("SecureCookies() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
