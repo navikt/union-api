@@ -94,6 +94,94 @@ func TestProjectResources(t *testing.T) {
 	}
 }
 
+func TestAssembleServiceAccounts(t *testing.T) {
+	t.Parallel()
+
+	const gkeAnnotation = "iam.gke.io/gcp-service-account"
+
+	res := func(domain, project string) uctl.Resource {
+		return uctl.Resource{Kind: uctl.Project, Organization: "org", Domain: domain, Project: project}
+	}
+
+	k8sSA := func(name, gsa string) corev1.ServiceAccount {
+		annotations := map[string]string{gkeAnnotation: gsa}
+		return corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: name, Annotations: annotations}}
+	}
+
+	tests := []struct {
+		name         string
+		resources    []uctl.Resource
+		accountsByNS map[string][]corev1.ServiceAccount
+		want         []ServiceAccount
+	}{
+		{
+			name:         "no resources returns nil",
+			resources:    nil,
+			accountsByNS: map[string][]corev1.ServiceAccount{},
+			want:         nil,
+		},
+		{
+			name:         "resource with no accounts in namespace returns nil",
+			resources:    []uctl.Resource{res("production", "myproject")},
+			accountsByNS: map[string][]corev1.ServiceAccount{},
+			want:         nil,
+		},
+		{
+			name:      "valid accounts are mapped to service accounts",
+			resources: []uctl.Resource{res("production", "myproject")},
+			accountsByNS: map[string][]corev1.ServiceAccount{
+				"myproject-production": {
+					k8sSA("sa-one", "sa-one@p.iam.gserviceaccount.com"),
+					k8sSA("sa-two", "sa-two@p.iam.gserviceaccount.com"),
+				},
+			},
+			want: []ServiceAccount{
+				{K8sServiceAccount: "sa-one", GoogleServiceAccount: "sa-one@p.iam.gserviceaccount.com", UnionProject: "myproject", UnionDomain: "production"},
+				{K8sServiceAccount: "sa-two", GoogleServiceAccount: "sa-two@p.iam.gserviceaccount.com", UnionProject: "myproject", UnionDomain: "production"},
+			},
+		},
+		{
+			name:      "default and unannotated accounts are excluded",
+			resources: []uctl.Resource{res("production", "myproject")},
+			accountsByNS: map[string][]corev1.ServiceAccount{
+				"myproject-production": {
+					{ObjectMeta: metav1.ObjectMeta{Name: "default", Annotations: map[string]string{gkeAnnotation: "default@p.iam.gserviceaccount.com"}}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "no-annotation"}},
+					k8sSA("valid-sa", "valid-sa@p.iam.gserviceaccount.com"),
+				},
+			},
+			want: []ServiceAccount{
+				{K8sServiceAccount: "valid-sa", GoogleServiceAccount: "valid-sa@p.iam.gserviceaccount.com", UnionProject: "myproject", UnionDomain: "production"},
+			},
+		},
+		{
+			name: "accounts are collected across multiple resources",
+			resources: []uctl.Resource{
+				res("production", "alpha"),
+				res("development", "beta"),
+			},
+			accountsByNS: map[string][]corev1.ServiceAccount{
+				"alpha-production": {k8sSA("sa-alpha", "sa-alpha@p.iam.gserviceaccount.com")},
+				"beta-development": {k8sSA("sa-beta", "sa-beta@p.iam.gserviceaccount.com")},
+			},
+			want: []ServiceAccount{
+				{K8sServiceAccount: "sa-alpha", GoogleServiceAccount: "sa-alpha@p.iam.gserviceaccount.com", UnionProject: "alpha", UnionDomain: "production"},
+				{K8sServiceAccount: "sa-beta", GoogleServiceAccount: "sa-beta@p.iam.gserviceaccount.com", UnionProject: "beta", UnionDomain: "development"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := assembleServiceAccounts(tt.resources, tt.accountsByNS)
+			if diff := cmp.Diff(tt.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("assembleServiceAccounts() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestToServiceAccount(t *testing.T) {
 	t.Parallel()
 

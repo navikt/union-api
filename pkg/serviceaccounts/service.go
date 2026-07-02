@@ -30,27 +30,44 @@ func (s Service) GetServiceAccounts(ctx context.Context, principal *auth.Princip
 		return nil, fmt.Errorf("failed to fetch identity assignments")
 	}
 
-	var serviceAccounts []ServiceAccount
+	resources := projectResources(permissions)
 
-	for _, resource := range projectResources(permissions) {
+	accountsByNS, err := s.fetchAllServiceAccounts(ctx, resources)
+	if err != nil {
+		return nil, err
+	}
+
+	return assembleServiceAccounts(resources, accountsByNS), nil
+}
+
+func (s Service) fetchAllServiceAccounts(ctx context.Context, resources []uctl.Resource) (map[string][]corev1.ServiceAccount, error) {
+	accountsByNS := make(map[string][]corev1.ServiceAccount, len(resources))
+	for _, resource := range resources {
 		ns, err := resource.Namespace()
 		if err != nil {
 			return nil, err
 		}
-
-		k8sServiceAccounts, err := s.k8sClient.ServiceAccounts(ctx, ns)
+		k8sSAs, err := s.k8sClient.ServiceAccounts(ctx, ns)
 		if err != nil {
 			slog.Error("failed to fetch kubernetes service accounts", "error", err)
 			return nil, fmt.Errorf("failed to fetch kubernetes service accounts")
 		}
-		for _, k8sSa := range k8sServiceAccounts.Items {
+		accountsByNS[ns] = k8sSAs.Items
+	}
+	return accountsByNS, nil
+}
+
+func assembleServiceAccounts(resources []uctl.Resource, accountsByNS map[string][]corev1.ServiceAccount) []ServiceAccount {
+	var serviceAccounts []ServiceAccount
+	for _, resource := range resources {
+		ns, _ := resource.Namespace() // namespace was already validated in fetchAllServiceAccounts
+		for _, k8sSa := range accountsByNS[ns] {
 			if sa, ok := toServiceAccount(k8sSa, resource); ok {
 				serviceAccounts = append(serviceAccounts, sa)
 			}
 		}
 	}
-
-	return serviceAccounts, nil
+	return serviceAccounts
 }
 
 func projectResources(permissions []uctl.Permission) []uctl.Resource {
