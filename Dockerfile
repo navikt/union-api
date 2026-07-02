@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 
 # Stage 2 — Download and verify uctl; pre-create ~/.uctl so uctl doesn't try to
 # create it at runtime (which would fail under a read-only root filesystem).
-FROM alpine:3.21 AS uctl-fetch
+FROM alpine:3.24 AS uctl-fetch
 ARG UCTL_VERSION=v0.1.20
 ARG UCTL_SHA256=6bc5bc36d419bc464fa7827a5d8e820d1d8db79ba00cd365311eb4a4d0839d68
 RUN apk add --no-cache curl && \
