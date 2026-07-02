@@ -51,7 +51,7 @@ jobs:
         run: echo "TAG=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.2.0
         with:
           context: .
           push: true
