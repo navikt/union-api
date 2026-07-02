@@ -4,20 +4,20 @@ kind: Kustomization
 namespace: union-api
 
 resources:
-  - ../../base
+- ../../base
 
 configMapGenerator:
-  - name: union-api-config
-    files:
-      - config.yaml
-    options:
-      disableNameSuffixHash: true
+- files:
+  - config.yaml
+  name: union-api-config
+  options:
+    disableNameSuffixHash: true
 
 patches:
-  - path: patches/serviceaccount.yaml
-  - path: patches/httproute.yaml
+- path: patches/serviceaccount.yaml
+- path: patches/httproute.yaml
 
 images:
-  - name: union-api
-    newName: europe-west1-docker.pkg.dev/nav-data-images-prod/dataplattform-infra/union-api
-    newTag: latest
+- name: union-api
+  newName: europe-west1-docker.pkg.dev/nav-data-images-prod/dataplattform-infra/union-api
+  newTag: e625bd5
