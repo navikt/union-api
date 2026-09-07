@@ -83,7 +83,7 @@ func projectResources(permissions []uctl.Permission) []uctl.Resource {
 }
 
 func toServiceAccount(k8sSa corev1.ServiceAccount, resource uctl.Resource) (ServiceAccount, bool) {
-	if k8sSa.Name == "default" {
+	if k8sSa.Name == "default" || k8sSa.Name == "image-builder" {
 		return ServiceAccount{}, false
 	}
 	gsa, ok := k8sSa.Annotations["iam.gke.io/gcp-service-account"]
