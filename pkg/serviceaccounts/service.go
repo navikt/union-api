@@ -72,9 +72,11 @@ func assembleServiceAccounts(resources []uctl.Resource, accountsByNS map[string]
 
 func projectResources(permissions []uctl.Permission) []uctl.Resource {
 	var resources []uctl.Resource
+	seen := make(map[uctl.Resource]bool)
 	for _, permission := range permissions {
 		for _, resource := range permission.Resources {
-			if resource.Kind == uctl.Project {
+			if resource.Kind == uctl.Project && !seen[resource] {
+				seen[resource] = true
 				resources = append(resources, resource)
 			}
 		}

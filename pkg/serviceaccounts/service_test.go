@@ -81,6 +81,36 @@ func TestProjectResources(t *testing.T) {
 				proj("org", "development", "beta"),
 			},
 		},
+		{
+			name: "duplicate project resources within a permission are returned once",
+			permissions: []uctl.Permission{
+				{Resources: []uctl.Resource{
+					proj("org", "production", "alpha"),
+					proj("org", "development", "alpha"),
+					proj("org", "production", "alpha"),
+				}},
+			},
+			want: []uctl.Resource{
+				proj("org", "production", "alpha"),
+				proj("org", "development", "alpha"),
+			},
+		},
+		{
+			name: "overlapping permissions return each project resource once",
+			permissions: []uctl.Permission{
+				{Role: "admin", Resources: []uctl.Resource{
+					proj("org", "production", "alpha"),
+				}},
+				{Role: "viewer", Resources: []uctl.Resource{
+					proj("org", "production", "alpha"),
+					proj("org", "production", "beta"),
+				}},
+			},
+			want: []uctl.Resource{
+				proj("org", "production", "alpha"),
+				proj("org", "production", "beta"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
