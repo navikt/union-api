@@ -19,4 +19,4 @@ patches:
 images:
 - name: union-api
   newName: europe-west1-docker.pkg.dev/nav-data-images-prod/dataplattform-infra/union-api
-  newTag: 74b3aa6
+  newTag: 0981d83
